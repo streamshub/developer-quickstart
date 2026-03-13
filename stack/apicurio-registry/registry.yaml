@@ -1,0 +1,6 @@
+apiVersion: registry.apicur.io/v1
+kind: ApicurioRegistry3
+metadata:
+  name: apicurio-registry
+spec:
+  app: {}

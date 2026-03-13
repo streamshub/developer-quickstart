@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kafka
+
+resources:
+  - https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/0.51.0/examples/kafka/kafka-single-node.yaml
+  - namespace.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: streamshub-developer-quickstart
+    includeSelectors: false
+
+patches:
+  - target:
+      kind: Kafka
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: dev-cluster
+  - target:
+      kind: KafkaNodePool
+    patch: |-
+      - op: replace
+        path: /metadata/labels/strimzi.io~1cluster
+        value: dev-cluster

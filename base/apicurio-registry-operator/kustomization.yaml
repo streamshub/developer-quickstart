@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: apicurio-registry
+
+resources:
+  - https://raw.githubusercontent.com/Apicurio/apicurio-registry/3.1.7/operator/install/install.yaml
+  - namespace.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: streamshub-developer-quickstart
+    includeSelectors: false
+
+patches:
+  - target:
+      kind: ClusterRoleBinding
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: apicurio-registry
+  # Strip version suffix from operator Deployment name
+  - target:
+      kind: Deployment
+      labelSelector: app.kubernetes.io/name=apicurio-registry-operator
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: apicurio-registry-operator
+  # Set watched namespaces (replace OLM valueFrom with direct value)
+  - target:
+      kind: Deployment
+      name: apicurio-registry-operator
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: apicurio-registry-operator
+      spec:
+        template:
+          spec:
+            containers:
+              - name: apicurio-registry-operator
+                env:
+                  - name: APICURIO_OPERATOR_WATCHED_NAMESPACES
+                    value: '*'
+                    valueFrom: null
