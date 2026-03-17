@@ -140,7 +140,7 @@ main() {
 
     # Wait for Kafka resources
     if kubectl get kafka -n kafka -l "$QUICKSTART_LABEL" --no-headers 2>/dev/null | grep -q .; then
-        info "  Waiting for Kafka resources in namespace 'kafka'..."
+        info "  Waiting for Kafka resource removal in namespace 'kafka'..."
         if ! wait_for_cr_removal "kafka" "kafka"; then
             warn "  Kafka resources not fully removed within timeout"
             removal_failed=true
@@ -151,7 +151,7 @@ main() {
 
     # Wait for Apicurio Registry resources
     if kubectl get apicurioregistry3 -n apicurio-registry -l "$QUICKSTART_LABEL" --no-headers 2>/dev/null | grep -q .; then
-        info "  Waiting for Apicurio Registry resources in namespace 'apicurio-registry'..."
+        info "  Waiting for Apicurio Registry resource removal in namespace 'apicurio-registry'..."
         if ! wait_for_cr_removal "apicurioregistry3" "apicurio-registry"; then
             warn "  Apicurio Registry resources not fully removed within timeout"
             removal_failed=true
@@ -162,7 +162,7 @@ main() {
 
     # Wait for Console resources
     if kubectl get console.console.streamshub.github.com -n streamshub-console -l "$QUICKSTART_LABEL" --no-headers 2>/dev/null | grep -q .; then
-        info "  Waiting for Console resources in namespace 'streamshub-console'..."
+        info "  Waiting for Console resource removal in namespace 'streamshub-console'..."
         if ! wait_for_cr_removal "console.console.streamshub.github.com" "streamshub-console"; then
             warn "  Console resources not fully removed within timeout"
             removal_failed=true
