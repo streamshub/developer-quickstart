@@ -25,3 +25,16 @@ patches:
       - op: replace
         path: /subjects/0/namespace
         value: streamshub-console
+  # Remove ServiceMonitor — requires Prometheus Operator CRD which is not
+  # part of the base install. A metrics overlay will be added separately.
+  - target:
+      group: monitoring.coreos.com
+      version: v1
+      kind: ServiceMonitor
+      name: streamshub-console-operator
+    patch: |-
+      $patch: delete
+      apiVersion: monitoring.coreos.com/v1
+      kind: ServiceMonitor
+      metadata:
+        name: streamshub-console-operator

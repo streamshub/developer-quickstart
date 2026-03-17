@@ -14,14 +14,16 @@
 #   curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/install.sh | REPO=myuser/developer-quickstart bash
 #
 # Environment variables:
-#   REPO    - GitHub repo path (default: streamshub/developer-quickstart)
-#   REF     - Git ref/branch/tag (default: main)
-#   TIMEOUT - kubectl wait timeout (default: 120s)
+#   LOCAL_DIR - Use local directory instead of GitHub (e.g. LOCAL_DIR=.)
+#   REPO      - GitHub repo path (default: streamshub/developer-quickstart)
+#   REF       - Git ref/branch/tag (default: main)
+#   TIMEOUT   - kubectl wait timeout (default: 120s)
 #
 
 set -euo pipefail
 
 # Defaults (overridable via environment variables)
+LOCAL_DIR="${LOCAL_DIR:-}"
 REPO="${REPO:-streamshub/developer-quickstart}"
 REF="${REF:-main}"
 TIMEOUT="${TIMEOUT:-120s}"
@@ -44,10 +46,14 @@ error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
-# Build the kustomize URL for a given sub-path
+# Build the kustomize URL (or local path) for a given sub-path
 kustomize_url() {
     local path="$1"
-    echo "https://github.com/${REPO}//${path}?ref=${REF}"
+    if [ -n "${LOCAL_DIR}" ]; then
+        echo "${LOCAL_DIR}/${path}"
+    else
+        echo "https://github.com/${REPO}//${path}?ref=${REF}"
+    fi
 }
 
 # Check prerequisites
@@ -69,7 +75,11 @@ check_prerequisites() {
 main() {
     echo ""
     info "Installing StreamsHub developer quick-start stack"
-    info "Repo: ${REPO} | Ref: ${REF} | Timeout: ${TIMEOUT}"
+    if [ -n "${LOCAL_DIR}" ]; then
+        info "Dir: ${LOCAL_DIR} | Timeout: ${TIMEOUT}"
+    else
+        info "Repo: ${REPO} | Ref: ${REF} | Timeout: ${TIMEOUT}"
+    fi
     echo ""
 
     # --- Prerequisites ---
@@ -100,7 +110,7 @@ main() {
 
     # --- Step 4: Wait for StreamsHub Console operator ---
     info "Step 4/5: Waiting for console-operator to be ready (timeout: ${TIMEOUT})..."
-    kubectl wait --for=condition=Available deployment/console-operator \
+    kubectl wait --for=condition=Available deployment/streamshub-console-operator \
         -n streamshub-console --timeout="${TIMEOUT}"
     info "StreamsHub Console operator is ready"
     echo ""

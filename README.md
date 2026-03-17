@@ -75,7 +75,7 @@ kubectl apply -k 'https://github.com/streamshub/developer-quickstart//stack?ref=
 
 ### Minikube
 
-When using minikube, (if you didn't eanble it when you created the minikube cluster) enable the ingress addon and run `minikube tunnel`:
+When using minikube, (if you didn't enable it when you created the minikube cluster) enable the ingress addon and run `minikube tunnel`:
 
 ```bash
 minikube addons enable ingress
@@ -137,7 +137,9 @@ kubectl get all -A -l app.kubernetes.io/part-of=streamshub-developer-quickstart
 kubectl get crds,clusterroles,clusterrolebindings -l app.kubernetes.io/part-of=streamshub-developer-quickstart
 ```
 
-## Updating Component Versions
+## Development
+
+### Updating Component Versions
 
 Use the `update-version.sh` script to update component versions:
 
@@ -157,6 +159,29 @@ Use the `update-version.sh` script to update component versions:
 
 Supported components: `strimzi`, `apicurio-registry`, `streamshub-console`
 
+### Testing scripts locally
+
+When developing changes to the kustomization files, use the `LOCAL_DIR` environment
+variable to point the install and uninstall scripts at your local checkout instead
+of the remote GitHub repository:
+
+```shell
+# Install from local repo
+LOCAL_DIR=. ./install.sh
+
+# Uninstall from local repo
+LOCAL_DIR=. ./uninstall.sh
+```
+
+When `LOCAL_DIR` is set, `REPO` and `REF` are ignored — the scripts resolve
+kustomization paths relative to the given directory.
+
+You can also provide an absolute path:
+
+```shell
+LOCAL_DIR=/home/user/repos/developer-quickstart ./install.sh
+```
+
 ## Repository Structure
 
 ```
@@ -174,11 +199,3 @@ stack/                              # Phase 2: Operands (Custom Resources)
 
 overlays/                           # Future: variant configurations
 ```
-
-## Current Component Versions
-
-| Component | Version |
-|-----------|---------|
-| Strimzi | 0.51.0 |
-| Apicurio Registry | 3.1.7 |
-| StreamsHub Console | 0.11.0 |

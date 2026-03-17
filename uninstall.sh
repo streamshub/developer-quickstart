@@ -15,14 +15,16 @@
 #   curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/uninstall.sh | REPO=myuser/developer-quickstart bash
 #
 # Environment variables:
-#   REPO    - GitHub repo path (default: streamshub/developer-quickstart)
-#   REF     - Git ref/branch/tag (default: main)
-#   TIMEOUT - kubectl wait/poll timeout (default: 120s)
+#   LOCAL_DIR - Use local directory instead of GitHub (e.g. LOCAL_DIR=.)
+#   REPO      - GitHub repo path (default: streamshub/developer-quickstart)
+#   REF       - Git ref/branch/tag (default: main)
+#   TIMEOUT   - kubectl wait/poll timeout (default: 120s)
 #
 
 set -euo pipefail
 
 # Defaults (overridable via environment variables)
+LOCAL_DIR="${LOCAL_DIR:-}"
 REPO="${REPO:-streamshub/developer-quickstart}"
 REF="${REF:-main}"
 TIMEOUT="${TIMEOUT:-120s}"
@@ -47,10 +49,14 @@ error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
-# Build the kustomize URL for a given sub-path
+# Build the kustomize URL (or local path) for a given sub-path
 kustomize_url() {
     local path="$1"
-    echo "https://github.com/${REPO}//${path}?ref=${REF}"
+    if [ -n "${LOCAL_DIR}" ]; then
+        echo "${LOCAL_DIR}/${path}"
+    else
+        echo "https://github.com/${REPO}//${path}?ref=${REF}"
+    fi
 }
 
 # Extract timeout value in seconds from TIMEOUT variable
@@ -117,7 +123,11 @@ CONSOLE_CR_TYPES="consoles"
 main() {
     echo ""
     info "Uninstalling StreamsHub developer quick-start stack"
-    info "Repo: ${REPO} | Ref: ${REF} | Timeout: ${TIMEOUT}"
+    if [ -n "${LOCAL_DIR}" ]; then
+        info "Dir: ${LOCAL_DIR} | Timeout: ${TIMEOUT}"
+    else
+        info "Repo: ${REPO} | Ref: ${REF} | Timeout: ${TIMEOUT}"
+    fi
     echo ""
 
     # Track which operator groups have shared CRDs
