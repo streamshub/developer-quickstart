@@ -67,6 +67,95 @@ timeout_seconds() {
     echo "$val"
 }
 
+# Discover CR type plural names for CRDs whose API group ends with the given suffix.
+# Arguments: api_group_suffix (e.g. "strimzi.io"), all_crds (pre-fetched CRD data)
+# Output: space-separated list of plural CR type names, or empty string
+filter_cr_types() {
+    local suffix="$1"
+    local all_crds="$2"
+    echo "$all_crds" \
+        | awk -v suf="$suffix" 'index($1, suf) == length($1) - length(suf) + 1 { printf "%s ", $2 }' \
+        | sed 's/ $//'
+}
+
+# Check if /dev/tty is available for interactive prompts.
+# Needed for `curl | bash` where stdin is the pipe.
+is_interactive() {
+    [ -c /dev/tty ] 2>/dev/null
+}
+
+# Prompt user with a yes/no question via /dev/tty. Defaults to No.
+# Arguments: prompt message
+# Returns 0 for yes, 1 for no
+prompt_yes_no() {
+    local prompt="$1"
+    local answer
+    echo -en "${YELLOW}${prompt} [y/N]: ${NC}" > /dev/tty
+    read -r answer < /dev/tty
+    case "$answer" in
+        [yY]|[yY][eE][sS]) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# List unlabeled CRs for given CR types across all namespaces.
+# Arguments: cr_types (space-separated list)
+# Returns 0 if any unlabeled CRs found, 1 if none
+list_unlabeled_crs() {
+    local cr_types="$1"
+    local found=false
+    for cr_type in $cr_types; do
+        local count
+        count=$(kubectl get "$cr_type" -A --selector='!app.kubernetes.io/part-of' --no-headers 2>/dev/null | wc -l | tr -d ' ') || count=0
+        if [ "$count" -gt 0 ]; then
+            found=true
+            kubectl get "$cr_type" -A --selector='!app.kubernetes.io/part-of' 2>/dev/null || true
+        fi
+    done
+    [ "$found" = true ]
+}
+
+# Delete unlabeled CRs for given CR types across all namespaces.
+# Arguments: cr_types (space-separated list)
+delete_unlabeled_crs() {
+    local cr_types="$1"
+    for cr_type in $cr_types; do
+        local count
+        count=$(kubectl get "$cr_type" -A --selector='!app.kubernetes.io/part-of' --no-headers 2>/dev/null | wc -l | tr -d ' ') || count=0
+        if [ "$count" -gt 0 ]; then
+            kubectl delete "$cr_type" -A --selector='!app.kubernetes.io/part-of' --ignore-not-found=true --wait=false 2>/dev/null || true
+        fi
+    done
+}
+
+# Wait for unlabeled CRs of given types to be fully removed.
+# Arguments: cr_types (space-separated list)
+# Returns 0 if all removed, 1 if timeout
+wait_for_unlabeled_cr_removal() {
+    local cr_types="$1"
+    local max_wait
+    max_wait=$(timeout_seconds)
+    local elapsed=0
+
+    while [ $elapsed -lt "$max_wait" ]; do
+        local total=0
+        for cr_type in $cr_types; do
+            local count
+            count=$(kubectl get "$cr_type" -A --selector='!app.kubernetes.io/part-of' --no-headers 2>/dev/null | wc -l | tr -d ' ')
+            total=$((total + count))
+        done
+        if [ "$total" -eq 0 ]; then
+            return 0
+        fi
+        if [ "${interrupted:-false}" = true ]; then
+            return 1
+        fi
+        sleep 5
+        elapsed=$((elapsed + 5))
+    done
+    return 1
+}
+
 # Wait for all custom resources of a given type to be fully removed
 # Returns 0 if all removed, 1 if timeout
 wait_for_cr_removal() {
@@ -81,6 +170,9 @@ wait_for_cr_removal() {
         count=$(kubectl get "$cr_type" -n "$namespace" -l "$QUICKSTART_LABEL" --no-headers 2>/dev/null | wc -l | tr -d ' ')
         if [ "$count" -eq 0 ]; then
             return 0
+        fi
+        if [ "${interrupted:-false}" = true ]; then
+            return 1
         fi
         sleep 5
         elapsed=$((elapsed + 5))
@@ -111,14 +203,10 @@ has_unlabeled_crs() {
     return 1
 }
 
-# Strimzi CR types to check for shared usage
-STRIMZI_CR_TYPES="kafkas kafkanodepools kafkatopics kafkausers kafkaconnects kafkamirrormakers kafkamirrormaker2s kafkabridges kafkaconnectors kafkarebalances"
-
-# Apicurio Registry CR types
-APICURIO_CR_TYPES="apicurioregistry3s"
-
-# StreamsHub Console CR types
-CONSOLE_CR_TYPES="consoles"
+# API group suffixes used to discover CR types dynamically from installed CRDs
+STRIMZI_API_GROUP_SUFFIX="strimzi.io"
+APICURIO_API_GROUP_SUFFIX="apicur.io"
+CONSOLE_API_GROUP_SUFFIX="streamshub.github.com"
 
 main() {
     echo ""
@@ -130,17 +218,134 @@ main() {
     fi
     echo ""
 
+    # Discover CR types dynamically from installed CRDs
+    local all_crds
+    all_crds=$(kubectl get crds \
+        -o jsonpath='{range .items[*]}{.spec.group}{" "}{.spec.names.plural}{"\n"}{end}' \
+        2>/dev/null || true)
+
+    STRIMZI_CR_TYPES=$(filter_cr_types "$STRIMZI_API_GROUP_SUFFIX" "$all_crds")
+    APICURIO_CR_TYPES=$(filter_cr_types "$APICURIO_API_GROUP_SUFFIX" "$all_crds")
+    CONSOLE_CR_TYPES=$(filter_cr_types "$CONSOLE_API_GROUP_SUFFIX" "$all_crds")
+
+    info "Discovered CR types:"
+    info "  Strimzi: ${STRIMZI_CR_TYPES:-<none>}"
+    info "  Apicurio Registry: ${APICURIO_CR_TYPES:-<none>}"
+    info "  StreamsHub Console: ${CONSOLE_CR_TYPES:-<none>}"
+    echo ""
+
+    # Catch Ctrl+C so the shell doesn't silently exit before reaching interactive prompts
+    local interrupted=false
+    trap 'warn "Caught interrupt, continuing cleanup..."; interrupted=true' INT
+
     # Track which operator groups have shared CRDs
     local strimzi_shared=false
     local apicurio_shared=false
     local console_shared=false
 
-    # --- Phase 1: Delete operands (stack layer) ---
+    # --- Phase 1: Interactive cleanup of user-created CRs ---
+    # Must run BEFORE stack deletion so operators are still alive to process finalizers
+    info "Phase 1: Checking for user-created custom resources..."
+
+    local has_user_crs=false
+
+    # Check each operator group for unlabeled CRs
+    local strimzi_user_crs=false
+    local apicurio_user_crs=false
+    local console_user_crs=false
+
+    if list_unlabeled_crs "$STRIMZI_CR_TYPES" > /dev/null 2>&1; then
+        strimzi_user_crs=true
+        has_user_crs=true
+    fi
+    if list_unlabeled_crs "$APICURIO_CR_TYPES" > /dev/null 2>&1; then
+        apicurio_user_crs=true
+        has_user_crs=true
+    fi
+    if list_unlabeled_crs "$CONSOLE_CR_TYPES" > /dev/null 2>&1; then
+        console_user_crs=true
+        has_user_crs=true
+    fi
+
+    if [ "$has_user_crs" = true ]; then
+        if is_interactive; then
+            warn "Found user-created custom resources (not part of the quick-start)."
+            warn "These resources will cause operator CRDs to be retained if not deleted."
+            echo ""
+
+            if [ "$strimzi_user_crs" = true ]; then
+                info "  Strimzi resources without quick-start label:"
+                list_unlabeled_crs "$STRIMZI_CR_TYPES" 2>/dev/null | sed 's/^/    /'
+                echo ""
+                if prompt_yes_no "  Delete these Strimzi resources?"; then
+                    info "  Deleting unlabeled Strimzi resources..."
+                    delete_unlabeled_crs "$STRIMZI_CR_TYPES"
+                    if wait_for_unlabeled_cr_removal "$STRIMZI_CR_TYPES"; then
+                        info "  Strimzi resources removed"
+                        strimzi_user_crs=false
+                    else
+                        warn "  Some Strimzi resources were not fully removed within timeout"
+                    fi
+                else
+                    info "  Skipping Strimzi resource deletion"
+                fi
+                echo ""
+            fi
+
+            if [ "$apicurio_user_crs" = true ]; then
+                info "  Apicurio Registry resources without quick-start label:"
+                list_unlabeled_crs "$APICURIO_CR_TYPES" 2>/dev/null | sed 's/^/    /'
+                echo ""
+                if prompt_yes_no "  Delete these Apicurio Registry resources?"; then
+                    info "  Deleting unlabeled Apicurio Registry resources..."
+                    delete_unlabeled_crs "$APICURIO_CR_TYPES"
+                    if wait_for_unlabeled_cr_removal "$APICURIO_CR_TYPES"; then
+                        info "  Apicurio Registry resources removed"
+                        apicurio_user_crs=false
+                    else
+                        warn "  Some Apicurio Registry resources were not fully removed within timeout"
+                    fi
+                else
+                    info "  Skipping Apicurio Registry resource deletion"
+                fi
+                echo ""
+            fi
+
+            if [ "$console_user_crs" = true ]; then
+                info "  StreamsHub Console resources without quick-start label:"
+                list_unlabeled_crs "$CONSOLE_CR_TYPES" 2>/dev/null | sed 's/^/    /'
+                echo ""
+                if prompt_yes_no "  Delete these StreamsHub Console resources?"; then
+                    info "  Deleting unlabeled Console resources..."
+                    delete_unlabeled_crs "$CONSOLE_CR_TYPES"
+                    if wait_for_unlabeled_cr_removal "$CONSOLE_CR_TYPES"; then
+                        info "  Console resources removed"
+                        console_user_crs=false
+                    else
+                        warn "  Some Console resources were not fully removed within timeout"
+                    fi
+                else
+                    info "  Skipping Console resource deletion"
+                fi
+                echo ""
+            fi
+        else
+            warn "Non-interactive mode: skipping user-created resource cleanup."
+            warn "User-created CRs were detected but cannot prompt for deletion."
+            warn "Phase 3 will treat these as shared resources and retain their CRDs."
+            echo ""
+        fi
+    else
+        info "  No user-created custom resources found"
+    fi
+    echo ""
+
+    # --- Phase 2: Delete operands (stack layer) ---
     local stack_url
     stack_url=$(kustomize_url "stack")
-    info "Phase 1: Deleting operands..."
+    info "Phase 2: Deleting operands..."
     info "Deleting: ${stack_url}"
-    kubectl delete -k "${stack_url}" --ignore-not-found=true 2>/dev/null || true
+    kubectl delete -k "${stack_url}" --ignore-not-found=true --wait=false 2>/dev/null || true
     echo ""
 
     # --- Wait for CRs to be fully removed ---
@@ -184,10 +389,11 @@ main() {
     if [ "$removal_failed" = true ]; then
         warn "Some custom resources were not fully removed. Proceeding with caution..."
     fi
+    interrupted=false
     echo ""
 
-    # --- Phase 2: Shared-cluster safety checks ---
-    info "Phase 2: Checking for shared CRD usage..."
+    # --- Phase 3: Shared-cluster safety checks ---
+    info "Phase 3: Checking for shared CRD usage..."
 
     if has_unlabeled_crs "$STRIMZI_CR_TYPES"; then
         strimzi_shared=true
@@ -211,17 +417,17 @@ main() {
     fi
     echo ""
 
-    # --- Phase 3: Delete operators and CRDs ---
+    # --- Phase 4: Delete operators and CRDs ---
     if [ "$strimzi_shared" = false ] && [ "$apicurio_shared" = false ] && [ "$console_shared" = false ]; then
         # No shared CRDs — safe to delete the entire base layer
         local base_url
         base_url=$(kustomize_url "base")
-        info "Phase 3: Deleting operators and CRDs (no shared usage detected)..."
+        info "Phase 4: Deleting operators and CRDs (no shared usage detected)..."
         info "Deleting: ${base_url}"
         kubectl delete -k "${base_url}" --ignore-not-found=true 2>/dev/null || true
     else
         # Some operator groups have shared CRDs — selective cleanup
-        info "Phase 3: Selective operator removal (some CRDs are shared)..."
+        info "Phase 4: Selective operator removal (some CRDs are shared)..."
 
         if [ "$strimzi_shared" = false ]; then
             info "  Removing Strimzi operator (full removal including CRDs)..."
