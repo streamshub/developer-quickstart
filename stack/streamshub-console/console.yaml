@@ -1,0 +1,10 @@
+apiVersion: console.streamshub.github.com/v1alpha1
+kind: Console
+metadata:
+  name: streamshub-console
+spec:
+  hostname: console.streamshub.local
+  kafkaClusters:
+    - name: dev-cluster
+      namespace: kafka
+      listener: plain

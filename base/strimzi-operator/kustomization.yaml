@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: strimzi
+
+resources:
+  - https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.51.0/strimzi-cluster-operator-0.51.0.yaml
+  - namespace.yaml
+  - clusterrolebindings.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: streamshub-developer-quickstart
+    includeSelectors: false
+
+patches:
+  - target:
+      kind: RoleBinding
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: strimzi
+  - target:
+      kind: ClusterRoleBinding
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: strimzi
+  # Watch all namespaces for Kafka resources
+  - target:
+      kind: Deployment
+      name: strimzi-cluster-operator
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: strimzi-cluster-operator
+      spec:
+        template:
+          spec:
+            containers:
+              - name: strimzi-cluster-operator
+                env:
+                  - name: STRIMZI_NAMESPACE
+                    value: '*'
+                    valueFrom: null
