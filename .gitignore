@@ -1,0 +1,9 @@
+# VSCode
+.vscode
+
+# IntelliJ IDEA specific
+.idea/
+*.iml
+
+### Mac OS ###
+**.DS_Store
