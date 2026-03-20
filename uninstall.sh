@@ -74,7 +74,7 @@ filter_cr_types() {
     local suffix="$1"
     local all_crds="$2"
     echo "$all_crds" \
-        | awk -v suf="$suffix" 'index($1, suf) == length($1) - length(suf) + 1 { printf "%s ", $2 }' \
+        | awk -v suf="$suffix" 'length($1) >= length(suf) && substr($1, length($1) - length(suf) + 1) == suf { printf "%s ", $2 }' \
         | sed 's/ $//'
 }
 
