@@ -47,8 +47,8 @@ setup_strimzi() {
     GITHUB_REPO="strimzi/strimzi-kafka-operator"
     VERSION_REGEX='releases/download/\K[0-9]+\.[0-9]+\.[0-9]+'
     COMPONENT_FILES=(
-        "${SCRIPT_DIR}/base/strimzi-operator/kustomization.yaml"
-        "${SCRIPT_DIR}/stack/kafka/kustomization.yaml"
+        "${SCRIPT_DIR}/components/core/base/strimzi-operator/kustomization.yaml"
+        "${SCRIPT_DIR}/components/core/stack/kafka/kustomization.yaml"
     )
 }
 
@@ -57,7 +57,7 @@ setup_apicurio_registry() {
     GITHUB_REPO="Apicurio/apicurio-registry"
     VERSION_REGEX='Apicurio/apicurio-registry/\K[0-9]+\.[0-9]+\.[0-9]+'
     COMPONENT_FILES=(
-        "${SCRIPT_DIR}/base/apicurio-registry-operator/kustomization.yaml"
+        "${SCRIPT_DIR}/components/core/base/apicurio-registry-operator/kustomization.yaml"
     )
 }
 
@@ -66,7 +66,16 @@ setup_streamshub_console() {
     GITHUB_REPO="streamshub/console"
     VERSION_REGEX='releases/download/\K[0-9]+\.[0-9]+\.[0-9]+'
     COMPONENT_FILES=(
-        "${SCRIPT_DIR}/base/streamshub-console-operator/kustomization.yaml"
+        "${SCRIPT_DIR}/components/core/base/streamshub-console-operator/kustomization.yaml"
+    )
+}
+
+setup_prometheus_operator() {
+    COMPONENT_LABEL="Prometheus Operator"
+    GITHUB_REPO="prometheus-operator/prometheus-operator"
+    VERSION_REGEX='releases/download/v\K[0-9]+\.[0-9]+\.[0-9]+'
+    COMPONENT_FILES=(
+        "${SCRIPT_DIR}/components/metrics/base/prometheus-operator/kustomization.yaml"
     )
 }
 
@@ -80,6 +89,7 @@ Components:
   strimzi              Strimzi Kafka Operator
   apicurio-registry    Apicurio Registry Operator
   streamshub-console   StreamsHub Console Operator
+  prometheus-operator  Prometheus Operator (metrics overlay)
 
 Arguments:
   component      The component to update
@@ -99,6 +109,7 @@ Examples:
   $(basename "$0") strimzi 0.51.0              # Update Strimzi to version
   $(basename "$0") apicurio-registry 3.1.8     # Update Apicurio Registry
   $(basename "$0") streamshub-console 0.12.0   # Update StreamsHub Console
+  $(basename "$0") prometheus-operator 0.90.0  # Update Prometheus Operator
 EOF
     exit 0
 }
@@ -116,9 +127,12 @@ setup_component() {
         streamshub-console)
             setup_streamshub_console
             ;;
+        prometheus-operator)
+            setup_prometheus_operator
+            ;;
         *)
             error "Unknown component: ${component}"
-            error "Valid components: strimzi, apicurio-registry, streamshub-console"
+            error "Valid components: strimzi, apicurio-registry, streamshub-console, prometheus-operator"
             exit 1
             ;;
     esac
@@ -386,7 +400,7 @@ main() {
         echo ""
         info "Next steps:"
         echo "  1. Review the changes: git diff"
-        echo "  2. Test the deployment: kubectl kustomize base/ && kubectl kustomize stack/"
+        echo "  2. Test the deployment: kubectl kustomize overlays/core/base/ && kubectl kustomize overlays/core/stack/"
         echo "  3. Commit the changes: git add -A && git commit -m 'Update ${COMPONENT_LABEL} to ${new_version}'"
     fi
 }

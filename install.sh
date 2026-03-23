@@ -13,10 +13,14 @@
 #   curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/install.sh | REF=v1.0.0 bash
 #   curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/install.sh | REPO=myuser/developer-quickstart bash
 #
+#   # Install with Prometheus metrics overlay
+#   curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/install.sh | OVERLAY=metrics bash
+#
 # Environment variables:
 #   LOCAL_DIR - Use local directory instead of GitHub (e.g. LOCAL_DIR=.)
 #   REPO      - GitHub repo path (default: streamshub/developer-quickstart)
 #   REF       - Git ref/branch/tag (default: main)
+#   OVERLAY   - Overlay to apply (e.g. metrics). Empty = base install
 #   TIMEOUT   - kubectl wait timeout (default: 120s)
 #
 
@@ -26,6 +30,7 @@ set -euo pipefail
 LOCAL_DIR="${LOCAL_DIR:-}"
 REPO="${REPO:-streamshub/developer-quickstart}"
 REF="${REF:-main}"
+OVERLAY="${OVERLAY:-}"
 TIMEOUT="${TIMEOUT:-120s}"
 
 # Color output helpers
@@ -73,8 +78,25 @@ check_prerequisites() {
 }
 
 main() {
+    # Compute kustomize paths based on overlay
+    local base_path="overlays/core/base"
+    local stack_path="overlays/core/stack"
+    if [ -n "${OVERLAY}" ]; then
+        base_path="overlays/${OVERLAY}/base"
+        stack_path="overlays/${OVERLAY}/stack"
+    fi
+
+    # Compute total steps based on overlay
+    local total_steps=5
+    if [ "${OVERLAY}" = "metrics" ]; then
+        total_steps=6
+    fi
+
     echo ""
     info "Installing StreamsHub developer quick-start stack"
+    if [ -n "${OVERLAY}" ]; then
+        info "Overlay: ${OVERLAY}"
+    fi
     if [ -n "${LOCAL_DIR}" ]; then
         info "Dir: ${LOCAL_DIR} | Timeout: ${TIMEOUT}"
     else
@@ -86,39 +108,58 @@ main() {
     check_prerequisites
     echo ""
 
-    # --- Step 1: Install operators (base layer) ---
+    local step=1
+
+    # --- Step: Install operators (base layer) ---
     local base_url
-    base_url=$(kustomize_url "base")
-    info "Step 1/5: Installing operators and CRDs..."
+    base_url=$(kustomize_url "${base_path}")
+    info "Step ${step}/${total_steps}: Installing operators and CRDs..."
     info "Applying: ${base_url}"
-    kubectl apply -k "${base_url}"
+    # Server-side apply avoids annotation size limits with large CRDs
+    # (e.g. Prometheus Operator CRDs exceed the 262144-byte limit for
+    # the kubectl.kubernetes.io/last-applied-configuration annotation).
+    kubectl apply --server-side --force-conflicts -k "${base_url}"
     echo ""
 
-    # --- Step 2: Wait for Strimzi operator ---
-    info "Step 2/5: Waiting for strimzi-cluster-operator to be ready (timeout: ${TIMEOUT})..."
+    # --- Step: Wait for prometheus-operator (metrics overlay only) ---
+    if [ "${OVERLAY}" = "metrics" ]; then
+        step=$((step + 1))
+        info "Step ${step}/${total_steps}: Waiting for prometheus-operator to be ready (timeout: ${TIMEOUT})..."
+        kubectl wait --for=condition=Available deployment/prometheus-operator \
+            -n monitoring --timeout="${TIMEOUT}"
+        info "Prometheus operator is ready"
+        echo ""
+    fi
+
+    # --- Step: Wait for Strimzi operator ---
+    step=$((step + 1))
+    info "Step ${step}/${total_steps}: Waiting for strimzi-cluster-operator to be ready (timeout: ${TIMEOUT})..."
     kubectl wait --for=condition=Available deployment/strimzi-cluster-operator \
         -n strimzi --timeout="${TIMEOUT}"
     info "Strimzi operator is ready"
     echo ""
 
-    # --- Step 3: Wait for Apicurio Registry operator ---
-    info "Step 3/5: Waiting for apicurio-registry-operator to be ready (timeout: ${TIMEOUT})..."
+    # --- Step: Wait for Apicurio Registry operator ---
+    step=$((step + 1))
+    info "Step ${step}/${total_steps}: Waiting for apicurio-registry-operator to be ready (timeout: ${TIMEOUT})..."
     kubectl wait --for=condition=Available deployment/apicurio-registry-operator \
         -n apicurio-registry --timeout="${TIMEOUT}"
     info "Apicurio Registry operator is ready"
     echo ""
 
-    # --- Step 4: Wait for StreamsHub Console operator ---
-    info "Step 4/5: Waiting for console-operator to be ready (timeout: ${TIMEOUT})..."
+    # --- Step: Wait for StreamsHub Console operator ---
+    step=$((step + 1))
+    info "Step ${step}/${total_steps}: Waiting for console-operator to be ready (timeout: ${TIMEOUT})..."
     kubectl wait --for=condition=Available deployment/streamshub-console-operator \
         -n streamshub-console --timeout="${TIMEOUT}"
     info "StreamsHub Console operator is ready"
     echo ""
 
-    # --- Step 5: Install operands (stack layer) ---
+    # --- Step: Install operands (stack layer) ---
+    step=$((step + 1))
     local stack_url
-    stack_url=$(kustomize_url "stack")
-    info "Step 5/5: Installing operands (Kafka cluster, Registry instance, Console)..."
+    stack_url=$(kustomize_url "${stack_path}")
+    info "Step ${step}/${total_steps}: Installing operands (Kafka cluster, Registry instance, Console)..."
     info "Applying: ${stack_url}"
     kubectl apply -k "${stack_url}"
     echo ""
@@ -133,6 +174,11 @@ main() {
     echo "  - Apicurio Registry instance  (namespace: apicurio-registry, storage: in-memory)"
     echo "  - StreamsHub Console operator (namespace: streamshub-console)"
     echo "  - StreamsHub Console instance (namespace: streamshub-console)"
+    if [ "${OVERLAY}" = "metrics" ]; then
+        echo "  - Prometheus operator         (namespace: monitoring)"
+        echo "  - Prometheus instance          (namespace: monitoring)"
+        echo "  - Kafka metrics (PodMonitors) (namespace: monitoring)"
+    fi
     echo ""
     echo "Verify with:"
     echo "  kubectl get deployment -n strimzi strimzi-cluster-operator"
@@ -141,6 +187,10 @@ main() {
     echo "  kubectl get apicurioregistry3 -n apicurio-registry"
     echo "  kubectl get deployment -n streamshub-console console-operator"
     echo "  kubectl get console -n streamshub-console"
+    if [ "${OVERLAY}" = "metrics" ]; then
+        echo "  kubectl get prometheus -n monitoring"
+        echo "  kubectl get podmonitor -n monitoring"
+    fi
 }
 
 main

@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - prometheus
+  - pod-monitors
+  - console-operator-service-monitor.yaml
+
+patches:
+  # Add metricsConfig to Kafka CR
+  - target:
+      group: kafka.strimzi.io
+      version: v1
+      kind: Kafka
+      name: dev-cluster
+    path: kafka-metrics-patch.yaml
+  # Add metricsSources to Console CR
+  - target:
+      group: console.streamshub.github.com
+      version: v1alpha1
+      kind: Console
+      name: streamshub-console
+    path: console-metrics-patch.yaml

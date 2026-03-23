@@ -1,0 +1,14 @@
+apiVersion: console.streamshub.github.com/v1alpha1
+kind: Console
+metadata:
+  name: streamshub-console
+spec:
+  metricsSources:
+    - name: prometheus
+      type: standalone
+      url: http://prometheus-operated.monitoring.svc:9090
+  kafkaClusters:
+    - name: dev-cluster
+      namespace: kafka
+      listener: plain
+      metricsSource: prometheus
