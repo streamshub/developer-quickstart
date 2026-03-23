@@ -6,68 +6,41 @@ inputs:
     description: 'Timeout for install/uninstall scripts'
     required: false
     default: '300s'
+  overlay:
+    description: 'Overlay name for component verification (matches .github/config/overlays/<name>.env)'
+    required: false
+    default: 'base'
 
 runs:
   using: 'composite'
   steps:
     - name: Run install script
       shell: bash
-      run: LOCAL_DIR=. TIMEOUT=${{ inputs.timeout }} ./install.sh
+      env:
+        LOCAL_DIR: .
+        TIMEOUT: ${{ inputs.timeout }}
+      run: ./install.sh
 
     - name: Verify deployments
       shell: bash
-      run: |
-        echo "--- Strimzi operator ---"
-        kubectl get deployment -n strimzi strimzi-cluster-operator
-        echo "--- Apicurio Registry operator ---"
-        kubectl get deployment -n apicurio-registry apicurio-registry-operator
-        echo "--- StreamsHub Console operator ---"
-        kubectl get deployment -n streamshub-console streamshub-console-operator
-
-        echo "--- Kafka cluster ---"
-        kubectl wait kafka/dev-cluster --for=condition=Ready -n kafka --timeout=600s
-        echo "--- Apicurio Registry instance ---"
-        kubectl wait apicurioregistry3/apicurio-registry --for=condition=Ready -n apicurio-registry --timeout=600s
-        echo "--- StreamsHub Console instance ---"
-        kubectl wait console.console.streamshub.github.com/streamshub-console --for=condition=Ready -n streamshub-console --timeout=600s
+      env:
+        OVERLAY: ${{ inputs.overlay }}
+      run: .github/scripts/verify-install.sh
 
     - name: Run uninstall script
       shell: bash
-      run: LOCAL_DIR=. TIMEOUT=${{ inputs.timeout }} ./uninstall.sh
+      env:
+        LOCAL_DIR: .
+        TIMEOUT: ${{ inputs.timeout }}
+      run: ./uninstall.sh
 
     - name: Verify uninstall
       shell: bash
-      run: |
-        echo "--- Checking for remaining quick-start resources ---"
-        remaining=$(kubectl get all -A -l app.kubernetes.io/part-of=streamshub-developer-quickstart --no-headers 2>/dev/null | wc -l | tr -d ' ')
-        if [ "$remaining" -gt 0 ]; then
-          echo "ERROR: Found $remaining remaining resources after uninstall:"
-          kubectl get all -A -l app.kubernetes.io/part-of=streamshub-developer-quickstart
-          exit 1
-        fi
-        echo "All quick-start resources successfully removed"
+      run: .github/scripts/verify-uninstall.sh
 
     - name: Debug on failure
       if: failure()
       shell: bash
-      run: |
-        echo "=== CR status ==="
-        kubectl get apicurioregistry3/apicurio-registry -n apicurio-registry -o yaml 2>/dev/null || true
-        kubectl get kafka/dev-cluster -n kafka -o yaml 2>/dev/null || true
-        kubectl get console.console.streamshub.github.com/streamshub-console -n streamshub-console -o yaml 2>/dev/null || true
-        echo ""
-        echo "=== Events (all namespaces) ==="
-        kubectl get events --all-namespaces --sort-by='.lastTimestamp' | tail -50
-        echo ""
-        echo "=== Pods (all namespaces) ==="
-        kubectl get pods --all-namespaces
-        echo ""
-        for ns in strimzi kafka apicurio-registry streamshub-console; do
-          echo "=== Pods in ${ns} ==="
-          kubectl get pods -n "${ns}" -o wide 2>/dev/null || true
-          echo "=== Pod logs in ${ns} ==="
-          for pod in $(kubectl get pods -n "${ns}" -o name 2>/dev/null); do
-            echo "--- ${pod} ---"
-            kubectl logs "${pod}" -n "${ns}" --tail=30 2>/dev/null || true
-          done
-        done
+      env:
+        OVERLAY: ${{ inputs.overlay }}
+      run: .github/scripts/debug.sh
