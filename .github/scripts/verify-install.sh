@@ -20,7 +20,7 @@ if [ ! -f "${CONFIG_FILE}" ]; then
     exit 1
 fi
 
-# shellcheck source=../.github/config/overlays/base.env
+# shellcheck disable=SC1090
 source "${CONFIG_FILE}"
 
 echo "=== Verifying install (overlay: ${OVERLAY}) ==="
