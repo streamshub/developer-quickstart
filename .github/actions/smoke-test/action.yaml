@@ -1,0 +1,46 @@
+name: 'Smoke Test'
+description: 'Install, verify, uninstall, and debug the developer quickstart'
+
+inputs:
+  timeout:
+    description: 'Timeout for install/uninstall scripts'
+    required: false
+    default: '300s'
+  overlay:
+    description: 'Overlay name for component verification (matches .github/config/overlays/<name>.env)'
+    required: false
+    default: 'base'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run install script
+      shell: bash
+      env:
+        LOCAL_DIR: .
+        TIMEOUT: ${{ inputs.timeout }}
+      run: ./install.sh
+
+    - name: Verify deployments
+      shell: bash
+      env:
+        OVERLAY: ${{ inputs.overlay }}
+      run: .github/scripts/verify-install.sh
+
+    - name: Run uninstall script
+      shell: bash
+      env:
+        LOCAL_DIR: .
+        TIMEOUT: ${{ inputs.timeout }}
+      run: ./uninstall.sh
+
+    - name: Verify uninstall
+      shell: bash
+      run: .github/scripts/verify-uninstall.sh
+
+    - name: Debug on failure
+      if: failure()
+      shell: bash
+      env:
+        OVERLAY: ${{ inputs.overlay }}
+      run: .github/scripts/debug.sh

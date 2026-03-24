@@ -90,6 +90,50 @@ kubectl port-forward -n streamshub-console svc/streamshub-console-console-servic
 
 Open [http://localhost:8080](http://localhost:8080) in your browser.
 
+### Kind
+
+When using Kind, create the cluster with ingress-ready port mappings:
+
+```bash
+cat <<EOF | kind create cluster --config=-
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+EOF
+```
+
+Then deploy an ingress controller (e.g. ingress-nginx):
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.1/deploy/static/provider/kind/deploy.yaml
+kubectl wait --namespace ingress-nginx \
+  --for=condition=Ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=120s
+```
+
+Use port-forwarding to access the console:
+
+```bash
+kubectl port-forward -n streamshub-console svc/streamshub-console-console-service 8080:80
+```
+
+Open [http://localhost:8080](http://localhost:8080) in your browser.
+
 ## Teardown
 
 ### Using the Uninstall Script

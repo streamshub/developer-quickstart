@@ -43,5 +43,5 @@ patches:
               - name: apicurio-registry-operator
                 env:
                   - name: APICURIO_OPERATOR_WATCHED_NAMESPACES
-                    value: '*'
+                    value: ''
                     valueFrom: null
