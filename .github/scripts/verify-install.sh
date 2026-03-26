@@ -4,13 +4,13 @@
 # Reads component definitions from an overlay config file.
 #
 # Environment variables:
-#   OVERLAY  - overlay name (default: "base")
+#   OVERLAY  - overlay name (default: "core")
 #   TIMEOUT  - kubectl wait timeout (default: "600s")
 #
 
 set -euo pipefail
 
-OVERLAY="${OVERLAY:-base}"
+OVERLAY="${OVERLAY:-core}"
 TIMEOUT="${TIMEOUT:-600s}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/../config/overlays/${OVERLAY}.env"
