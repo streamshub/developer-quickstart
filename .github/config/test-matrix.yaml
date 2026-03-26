@@ -1,0 +1,26 @@
+# Test matrix configuration for CI smoke tests.
+#
+# ComputeTestMatrix.java reads this file to enrich the dynamically
+# computed test matrix with per-overlay test settings.
+#
+# The matrix is computed automatically from overlay component
+# dependencies — only "leaf" overlays (those not fully covered by
+# a larger overlay) are tested. This file provides additional
+# test-specific configuration that doesn't belong in the overlay
+# definitions themselves.
+#
+# Structure:
+#   overlays:
+#     <overlay-name>:
+#       condition-overrides: "<apiGroup>=<Condition> ..."
+#
+# Fields:
+#   condition-overrides  Space-separated list of apiGroup=Condition
+#                        pairs. During verification, custom resources
+#                        belonging to the given API group will be
+#                        checked for the specified condition instead
+#                        of the default "Ready".
+
+overlays:
+  metrics:
+    condition-overrides: "monitoring.coreos.com=Available"

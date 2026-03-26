@@ -8,41 +8,25 @@ on:
 
 jobs:
   kustomize-build:
-    name: Validate Kustomize configs
+    name: Validate Kustomize (${{ matrix.overlay }}/${{ matrix.layer }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        overlay: [core, metrics]
+        layer: [base, stack]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@776406bce94f63e41d621b960d78ee25c8b76ede # v4.0.1
 
-      - name: Build core overlay base
-        run: kubectl kustomize overlays/core/base/
+      - name: Build
+        run: kubectl kustomize overlays/${{ matrix.overlay }}/${{ matrix.layer }}/
 
-      - name: Build core overlay stack
-        run: kubectl kustomize overlays/core/stack/
-
-      - name: Build metrics overlay base
-        run: kubectl kustomize overlays/metrics/base/
-
-      - name: Build metrics overlay stack
-        run: kubectl kustomize overlays/metrics/stack/
-
-      - name: Verify quick-start labels in core overlay base
+      - name: Verify quick-start labels
         run: |
-          kubectl kustomize overlays/core/base/ | grep -q 'app.kubernetes.io/part-of: streamshub-developer-quickstart'
-
-      - name: Verify quick-start labels in core overlay stack
-        run: |
-          kubectl kustomize overlays/core/stack/ | grep -q 'app.kubernetes.io/part-of: streamshub-developer-quickstart'
-
-      - name: Verify quick-start labels in metrics overlay base
-        run: |
-          kubectl kustomize overlays/metrics/base/ | grep -q 'app.kubernetes.io/part-of: streamshub-developer-quickstart'
-
-      - name: Verify quick-start labels in metrics overlay stack
-        run: |
-          kubectl kustomize overlays/metrics/stack/ | grep -q 'app.kubernetes.io/part-of: streamshub-developer-quickstart'
+          kubectl kustomize overlays/${{ matrix.overlay }}/${{ matrix.layer }}/ \
+            | grep -q 'app.kubernetes.io/part-of: streamshub-developer-quickstart'
 
   shellcheck:
     name: Lint shell scripts

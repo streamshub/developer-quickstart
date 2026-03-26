@@ -7,18 +7,33 @@ on:
   pull_request:
 
 jobs:
-  smoke-minikube:
-    name: smoke-minikube (${{ matrix.overlay }})
+  compute-matrix:
+    name: Compute test matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JBang
+        uses: jbangdev/setup-jbang@2b1b465a7b75f4222b81426f23a01e013aa7b95c # v0.1.1
+
+      - name: Compute matrix from overlay dependencies
+        id: matrix
+        run: echo "matrix=$(jbang .github/scripts/ComputeTestMatrix.java)" >> "$GITHUB_OUTPUT"
+
+  smoke-test:
+    name: smoke-test (${{ matrix.platform }}, ${{ matrix.overlay }})
+    needs: compute-matrix
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        overlay: [core, metrics]
+      matrix: ${{ fromJSON(needs.compute-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Start Minikube
-        id: minikube
+        if: matrix.platform == 'minikube'
         uses: medyagh/setup-minikube@e9e035a86bbc3caea26a450bd4dbf9d0c453682e # v0.0.21
         with:
           minikube-version: 'latest'
@@ -26,28 +41,14 @@ jobs:
           insecure-registry: 'localhost:5000,10.0.0.0/24'
           start-args: '--extra-config=kubeadm.ignore-preflight-errors=SystemVerification --extra-config=apiserver.authorization-mode=RBAC,Node'
 
-      - name: Smoke test
-        uses: ./.github/actions/smoke-test
-        with:
-          timeout: 300s
-          overlay: ${{ matrix.overlay }}
-
-  smoke-kind:
-    name: smoke-kind (${{ matrix.overlay }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        overlay: [core, metrics]
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
       - name: Create Kind cluster
+        if: matrix.platform == 'kind'
         uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 # v1.12.0
         with:
           config: .github/config/kind-config.yaml
 
       - name: Deploy ingress-nginx
+        if: matrix.platform == 'kind'
         run: |
           kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.1/deploy/static/provider/kind/deploy.yaml
           kubectl wait --namespace ingress-nginx \
@@ -58,5 +59,5 @@ jobs:
       - name: Smoke test
         uses: ./.github/actions/smoke-test
         with:
-          timeout: 300s
           overlay: ${{ matrix.overlay }}
+          condition-overrides: ${{ matrix.condition-overrides }}
