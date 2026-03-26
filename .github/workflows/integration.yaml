@@ -29,6 +29,7 @@ jobs:
       - name: Smoke test
         uses: ./.github/actions/smoke-test
         with:
+          timeout: 300s
           overlay: ${{ matrix.overlay }}
 
   smoke-kind:
@@ -57,4 +58,5 @@ jobs:
       - name: Smoke test
         uses: ./.github/actions/smoke-test
         with:
+          timeout: 300s
           overlay: ${{ matrix.overlay }}

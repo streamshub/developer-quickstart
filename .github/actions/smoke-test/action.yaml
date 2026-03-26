@@ -26,6 +26,7 @@ runs:
       shell: bash
       env:
         OVERLAY: ${{ inputs.overlay }}
+        TIMEOUT: ${{ inputs.timeout }}
       run: .github/scripts/verify-install.sh
 
     - name: Run uninstall script
@@ -38,6 +39,8 @@ runs:
 
     - name: Verify uninstall
       shell: bash
+      env:
+        TIMEOUT: ${{ inputs.timeout }}
       run: .github/scripts/verify-uninstall.sh
 
     - name: Debug on failure
