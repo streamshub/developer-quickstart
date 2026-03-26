@@ -37,7 +37,13 @@ echo ""
 
 for entry in ${CUSTOM_RESOURCES}; do
     ns="${entry%%:*}"
-    resource="${entry#*:}"
+    rest="${entry#*:}"
+    resource="${rest%:*}"
+    if [ "${rest}" != "${resource}" ]; then
+        condition="${rest##*:}"
+    else
+        condition="Ready"
+    fi
     echo "--- ${resource} (${ns}) ---"
-    kubectl wait "${resource}" --for=condition=Ready -n "${ns}" --timeout="${TIMEOUT}"
+    kubectl wait "${resource}" --for=condition="${condition}" -n "${ns}" --timeout="${TIMEOUT}"
 done
