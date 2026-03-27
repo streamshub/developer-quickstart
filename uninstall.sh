@@ -14,10 +14,14 @@
 #   curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/uninstall.sh | REF=v1.0.0 bash
 #   curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/uninstall.sh | REPO=myuser/developer-quickstart bash
 #
+#   # Uninstall metrics overlay
+#   curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/uninstall.sh | OVERLAY=metrics bash
+#
 # Environment variables:
 #   LOCAL_DIR - Use local directory instead of GitHub (e.g. LOCAL_DIR=.)
 #   REPO      - GitHub repo path (default: streamshub/developer-quickstart)
 #   REF       - Git ref/branch/tag (default: main)
+#   OVERLAY   - Overlay to uninstall (e.g. metrics). Empty = base install
 #   TIMEOUT   - kubectl wait/poll timeout (default: 120s)
 #
 
@@ -27,6 +31,7 @@ set -euo pipefail
 LOCAL_DIR="${LOCAL_DIR:-}"
 REPO="${REPO:-streamshub/developer-quickstart}"
 REF="${REF:-main}"
+OVERLAY="${OVERLAY:-}"
 TIMEOUT="${TIMEOUT:-120s}"
 
 QUICKSTART_LABEL="app.kubernetes.io/part-of=streamshub-developer-quickstart"
@@ -207,10 +212,22 @@ has_unlabeled_crs() {
 STRIMZI_API_GROUP_SUFFIX="strimzi.io"
 APICURIO_API_GROUP_SUFFIX="apicur.io"
 CONSOLE_API_GROUP_SUFFIX="streamshub.github.com"
+PROMETHEUS_API_GROUP_SUFFIX="monitoring.coreos.com"
 
 main() {
+    # Compute kustomize paths based on overlay
+    local base_path="overlays/core/base"
+    local stack_path="overlays/core/stack"
+    if [ -n "${OVERLAY}" ]; then
+        base_path="overlays/${OVERLAY}/base"
+        stack_path="overlays/${OVERLAY}/stack"
+    fi
+
     echo ""
     info "Uninstalling StreamsHub developer quick-start stack"
+    if [ -n "${OVERLAY}" ]; then
+        info "Overlay: ${OVERLAY}"
+    fi
     if [ -n "${LOCAL_DIR}" ]; then
         info "Dir: ${LOCAL_DIR} | Timeout: ${TIMEOUT}"
     else
@@ -227,11 +244,15 @@ main() {
     STRIMZI_CR_TYPES=$(filter_cr_types "$STRIMZI_API_GROUP_SUFFIX" "$all_crds")
     APICURIO_CR_TYPES=$(filter_cr_types "$APICURIO_API_GROUP_SUFFIX" "$all_crds")
     CONSOLE_CR_TYPES=$(filter_cr_types "$CONSOLE_API_GROUP_SUFFIX" "$all_crds")
+    PROMETHEUS_CR_TYPES=$(filter_cr_types "$PROMETHEUS_API_GROUP_SUFFIX" "$all_crds")
 
     info "Discovered CR types:"
     info "  Strimzi: ${STRIMZI_CR_TYPES:-<none>}"
     info "  Apicurio Registry: ${APICURIO_CR_TYPES:-<none>}"
     info "  StreamsHub Console: ${CONSOLE_CR_TYPES:-<none>}"
+    if [ -n "${PROMETHEUS_CR_TYPES}" ]; then
+        info "  Prometheus: ${PROMETHEUS_CR_TYPES}"
+    fi
     echo ""
 
     # Catch Ctrl+C so the shell doesn't silently exit before reaching interactive prompts
@@ -342,7 +363,7 @@ main() {
 
     # --- Phase 2: Delete operands (stack layer) ---
     local stack_url
-    stack_url=$(kustomize_url "stack")
+    stack_url=$(kustomize_url "${stack_path}")
     info "Phase 2: Deleting operands..."
     info "Deleting: ${stack_url}"
     kubectl delete -k "${stack_url}" --ignore-not-found=true --wait=false 2>/dev/null || true
@@ -421,7 +442,7 @@ main() {
     if [ "$strimzi_shared" = false ] && [ "$apicurio_shared" = false ] && [ "$console_shared" = false ]; then
         # No shared CRDs — safe to delete the entire base layer
         local base_url
-        base_url=$(kustomize_url "base")
+        base_url=$(kustomize_url "${base_path}")
         info "Phase 4: Deleting operators and CRDs (no shared usage detected)..."
         info "Deleting: ${base_url}"
         kubectl delete -k "${base_url}" --ignore-not-found=true 2>/dev/null || true
@@ -432,7 +453,7 @@ main() {
         if [ "$strimzi_shared" = false ]; then
             info "  Removing Strimzi operator (full removal including CRDs)..."
             local strimzi_url
-            strimzi_url=$(kustomize_url "base/strimzi-operator")
+            strimzi_url=$(kustomize_url "components/core/base/strimzi-operator")
             kubectl delete -k "${strimzi_url}" --ignore-not-found=true 2>/dev/null || true
         else
             warn "  Strimzi: Removing operator deployment only (retaining CRDs)..."
@@ -444,7 +465,7 @@ main() {
         if [ "$apicurio_shared" = false ]; then
             info "  Removing Apicurio Registry operator (full removal including CRDs)..."
             local apicurio_url
-            apicurio_url=$(kustomize_url "base/apicurio-registry-operator")
+            apicurio_url=$(kustomize_url "components/core/base/apicurio-registry-operator")
             kubectl delete -k "${apicurio_url}" --ignore-not-found=true 2>/dev/null || true
         else
             warn "  Apicurio Registry: Removing operator deployment only (retaining CRDs)..."
@@ -455,12 +476,20 @@ main() {
         if [ "$console_shared" = false ]; then
             info "  Removing StreamsHub Console operator (full removal including CRDs)..."
             local console_url
-            console_url=$(kustomize_url "base/streamshub-console-operator")
+            console_url=$(kustomize_url "components/core/base/streamshub-console-operator")
             kubectl delete -k "${console_url}" --ignore-not-found=true 2>/dev/null || true
         else
             warn "  StreamsHub Console: Removing operator deployment only (retaining CRDs)..."
             kubectl delete deployment console-operator -n streamshub-console --ignore-not-found=true 2>/dev/null || true
             kubectl delete serviceaccount console-operator -n streamshub-console --ignore-not-found=true 2>/dev/null || true
+        fi
+
+        # Remove prometheus-operator if metrics overlay was used
+        if [ "${OVERLAY}" = "metrics" ]; then
+            info "  Removing Prometheus operator..."
+            local prom_url
+            prom_url=$(kustomize_url "components/metrics/base/prometheus-operator")
+            kubectl delete -k "${prom_url}" --ignore-not-found=true 2>/dev/null || true
         fi
     fi
     echo ""
@@ -475,6 +504,7 @@ main() {
         [ "$strimzi_shared" = true ] && echo "  - Strimzi CRDs (non-quick-start Kafka resources exist on the cluster)"
         [ "$apicurio_shared" = true ] && echo "  - Apicurio Registry CRDs (non-quick-start Registry resources exist on the cluster)"
         [ "$console_shared" = true ] && echo "  - StreamsHub Console CRDs (non-quick-start Console resources exist on the cluster)"
+        true  # ensure block doesn't fail if all conditions are false
         echo ""
         echo "To manually remove retained CRDs after verifying no resources depend on them:"
         echo "  kubectl get crds -l ${QUICKSTART_LABEL}"

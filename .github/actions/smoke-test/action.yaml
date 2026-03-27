@@ -9,7 +9,7 @@ inputs:
   overlay:
     description: 'Overlay name for component verification (matches .github/config/overlays/<name>.env)'
     required: false
-    default: 'base'
+    default: 'core'
 
 runs:
   using: 'composite'
@@ -18,6 +18,7 @@ runs:
       shell: bash
       env:
         LOCAL_DIR: .
+        OVERLAY: ${{ inputs.overlay }}
         TIMEOUT: ${{ inputs.timeout }}
       run: ./install.sh
 
@@ -25,17 +26,21 @@ runs:
       shell: bash
       env:
         OVERLAY: ${{ inputs.overlay }}
+        TIMEOUT: ${{ inputs.timeout }}
       run: .github/scripts/verify-install.sh
 
     - name: Run uninstall script
       shell: bash
       env:
         LOCAL_DIR: .
+        OVERLAY: ${{ inputs.overlay }}
         TIMEOUT: ${{ inputs.timeout }}
       run: ./uninstall.sh
 
     - name: Verify uninstall
       shell: bash
+      env:
+        TIMEOUT: ${{ inputs.timeout }}
       run: .github/scripts/verify-uninstall.sh
 
     - name: Debug on failure

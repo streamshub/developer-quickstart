@@ -1,0 +1,8 @@
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: dev-cluster
+spec:
+  kafka:
+    metricsConfig:
+      type: strimziMetricsReporter

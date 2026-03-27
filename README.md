@@ -15,6 +15,8 @@ A Kustomize-based repository for deploying the StreamsHub event-streaming stack 
 | StreamsHub Console Operator | `streamshub-console` | Manages console instances |
 | StreamsHub Console instance | `streamshub-console` | Web UI for Kafka management |
 
+> **Optional:** The [metrics overlay](#install-with-metrics) adds Prometheus Operator, a Prometheus instance, and Kafka metrics collection via PodMonitors.
+
 ## Prerequisites
 
 - `kubectl` v1.27 or later (for Kustomize v5.0 `labels` transformer support)
@@ -39,6 +41,7 @@ The install script accepts the following environment variables:
 |----------|---------|-------------|
 | `REPO` | `streamshub/developer-quickstart` | GitHub repository path |
 | `REF` | `main` | Git ref, branch, or tag |
+| `OVERLAY` | *(empty)* | Overlay to apply (e.g. `metrics`) |
 | `TIMEOUT` | `120s` | `kubectl wait` timeout |
 
 Example with a pinned version:
@@ -47,6 +50,16 @@ Example with a pinned version:
 curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/install.sh | REF=v1.0.0 bash
 ```
 
+### Install with Metrics
+
+Deploy the stack with Prometheus metrics collection:
+
+```shell
+curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/install.sh | OVERLAY=metrics bash
+```
+
+This adds the Prometheus Operator and a Prometheus instance (namespace: `monitoring`), enables Kafka metrics via [Strimzi Metrics Reporter](https://strimzi.io/docs/operators/latest/deploying#proc-metrics-kafka-str), and wires Console to display metrics.
+
 ## Manual Install
 
 If you prefer to control each step, the stack is installed in two phases:
@@ -54,7 +67,7 @@ If you prefer to control each step, the stack is installed in two phases:
 ### Phase 1 — Operators and CRDs
 
 ```shell
-kubectl apply -k 'https://github.com/streamshub/developer-quickstart//base?ref=main'
+kubectl apply -k 'https://github.com/streamshub/developer-quickstart//overlays/core/base?ref=main'
 ```
 
 Wait for the operators to become ready:
@@ -68,7 +81,23 @@ kubectl wait --for=condition=Available deployment/streamshub-console-operator -n
 ### Phase 2 — Operands
 
 ```shell
-kubectl apply -k 'https://github.com/streamshub/developer-quickstart//stack?ref=main'
+kubectl apply -k 'https://github.com/streamshub/developer-quickstart//overlays/core/stack?ref=main'
+```
+
+### Manual Install with Metrics
+
+To include the metrics overlay, use the `overlays/metrics` paths instead of `overlays/core`.
+
+```shell
+# Phase 1
+kubectl create -k 'https://github.com/streamshub/developer-quickstart//overlays/metrics/base?ref=main'
+kubectl wait --for=condition=Available deployment/prometheus-operator -n monitoring --timeout=120s
+kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi --timeout=120s
+kubectl wait --for=condition=Available deployment/apicurio-registry-operator -n apicurio-registry --timeout=120s
+kubectl wait --for=condition=Available deployment/streamshub-console-operator -n streamshub-console --timeout=120s
+
+# Phase 2
+kubectl apply -k 'https://github.com/streamshub/developer-quickstart//overlays/metrics/stack?ref=main'
 ```
 
 ## Accessing the Console
@@ -142,6 +171,9 @@ The uninstall script handles safe teardown with shared-cluster safety checks:
 
 ```shell
 curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/uninstall.sh | bash
+
+# If installed with the metrics overlay:
+curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/uninstall.sh | OVERLAY=metrics bash
 ```
 
 The script:
@@ -156,7 +188,7 @@ The script:
 **Phase 1 — Delete operands:**
 
 ```shell
-kubectl delete -k 'https://github.com/streamshub/developer-quickstart//stack?ref=main'
+kubectl delete -k 'https://github.com/streamshub/developer-quickstart//overlays/core/stack?ref=main'
 ```
 
 Wait for all custom resources to be fully removed before proceeding.
@@ -169,8 +201,10 @@ Wait for all custom resources to be fully removed before proceeding.
 > ```
 
 ```shell
-kubectl delete -k 'https://github.com/streamshub/developer-quickstart//base?ref=main'
+kubectl delete -k 'https://github.com/streamshub/developer-quickstart//overlays/core/base?ref=main'
 ```
+
+For the metrics overlay, use `overlays/metrics/base` and `overlays/metrics/stack` instead.
 
 ### Finding Quick-Start Resources
 
@@ -201,7 +235,7 @@ Use the `update-version.sh` script to update component versions:
 ./update-version.sh strimzi 0.52.0
 ```
 
-Supported components: `strimzi`, `apicurio-registry`, `streamshub-console`
+Supported components: `strimzi`, `apicurio-registry`, `streamshub-console`, `prometheus-operator`
 
 ### Testing scripts locally
 
@@ -229,17 +263,25 @@ LOCAL_DIR=/home/user/repos/developer-quickstart ./install.sh
 ## Repository Structure
 
 ```
-base/                               # Phase 1: Operators & CRDs
-├── kustomization.yaml              # Composes all operator sub-components
-├── strimzi-operator/               # Strimzi Kafka Operator
-├── apicurio-registry-operator/     # Apicurio Registry Operator
-└── streamshub-console-operator/    # StreamsHub Console Operator
+components/                         # Reusable Kustomize components
+├── core/                           # Core stack component
+│   ├── base/                       # Operators & CRDs
+│   │   ├── strimzi-operator/       # Strimzi Kafka Operator
+│   │   ├── apicurio-registry-operator/  # Apicurio Registry Operator
+│   │   └── streamshub-console-operator/ # StreamsHub Console Operator
+│   └── stack/                      # Operands (Custom Resources)
+│       ├── kafka/                  # Single-node Kafka cluster
+│       ├── apicurio-registry/      # In-memory registry instance
+│       └── streamshub-console/     # Console instance
+└── metrics/                        # Prometheus metrics component
+    ├── base/                       # Prometheus Operator
+    └── stack/                      # Prometheus instance, PodMonitors, patches
 
-stack/                              # Phase 2: Operands (Custom Resources)
-├── kustomization.yaml              # Composes all operand sub-components
-├── kafka/                          # Single-node Kafka cluster
-├── apicurio-registry/              # In-memory registry instance
-└── streamshub-console/             # Console instance
-
-overlays/                           # Future: variant configurations
+overlays/                           # Deployable configurations
+├── core/                           # Default install (core only)
+│   ├── base/                       # Phase 1: Operators & CRDs
+│   └── stack/                      # Phase 2: Operands
+└── metrics/                        # Core + Prometheus metrics
+    ├── base/                       # Phase 1: Operators & CRDs + Prometheus Operator
+    └── stack/                      # Phase 2: Operands + Prometheus instance & monitors
 ```
