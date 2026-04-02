@@ -4,7 +4,15 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '*.md'
+      - 'LICENSE'
+      - '.docs-preview/**'
   pull_request:
+    paths-ignore:
+      - '*.md'
+      - 'LICENSE'
+      - '.docs-preview/**'
 
 jobs:
   kustomize-build:
