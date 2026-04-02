@@ -260,6 +260,28 @@ You can also provide an absolute path:
 LOCAL_DIR=/home/user/repos/developer-quickstart ./install.sh
 ```
 
+### Previewing Documentation Locally
+
+The `docs/` directory contains the project documentation. To preview it locally with Hugo:
+
+```shell
+./docs/preview.sh
+```
+
+This starts a local server at [http://localhost:1313/docs/](http://localhost:1313/docs/) with live-reload. 
+Press `Ctrl+C` to stop.
+
+To generate static HTML instead:
+
+```shell
+./docs/preview.sh build
+```
+
+The output is written to `.docs-preview/public/`.
+
+**Requirements:** `hugo`, `git`, and `go` must be installed. 
+The script handles theme fetching and site configuration automatically.
+
 ## Testing
 
 ### CI Smoke Tests
@@ -328,28 +350,3 @@ The scripts accept configuration via environment variables:
 | `PLATFORMS` | ComputeTestMatrix | `minikube kind` | Space-separated list of target platforms |
 | `LOG_TAIL_LINES` | Debug | `30` | Number of log lines to tail per pod |
 
-## Repository Structure
-
-```
-components/                         # Reusable Kustomize components
-├── core/                           # Core stack component
-│   ├── base/                       # Operators & CRDs
-│   │   ├── strimzi-operator/       # Strimzi Kafka Operator
-│   │   ├── apicurio-registry-operator/  # Apicurio Registry Operator
-│   │   └── streamshub-console-operator/ # StreamsHub Console Operator
-│   └── stack/                      # Operands (Custom Resources)
-│       ├── kafka/                  # Single-node Kafka cluster
-│       ├── apicurio-registry/      # In-memory registry instance
-│       └── streamshub-console/     # Console instance
-└── metrics/                        # Prometheus metrics component
-    ├── base/                       # Prometheus Operator
-    └── stack/                      # Prometheus instance, PodMonitors, patches
-
-overlays/                           # Deployable configurations
-├── core/                           # Default install (core only)
-│   ├── base/                       # Phase 1: Operators & CRDs
-│   └── stack/                      # Phase 2: Operands
-└── metrics/                        # Core + Prometheus metrics
-    ├── base/                       # Phase 1: Operators & CRDs + Prometheus Operator
-    └── stack/                      # Phase 2: Operands + Prometheus instance & monitors
-```
