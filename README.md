@@ -6,22 +6,17 @@ A Kustomize-based repository for deploying the StreamsHub event-streaming stack 
 
 ## What Gets Deployed
 
-| Component | Namespace | Description |
-|-----------|-----------|-------------|
-| Strimzi Kafka Operator | `strimzi` | Manages Kafka clusters via CRDs |
-| Kafka cluster (`dev-cluster`) | `kafka` | Single-node Kafka for development |
-| Apicurio Registry Operator | `apicurio-registry` | Manages schema registry instances |
-| Apicurio Registry instance | `apicurio-registry` | In-memory schema registry |
-| StreamsHub Console Operator | `streamshub-console` | Manages console instances |
-| StreamsHub Console instance | `streamshub-console` | Web UI for Kafka management |
+The stack deploys Strimzi Kafka, Apicurio Registry, and StreamsHub Console operators along with their operand instances. 
+Optional [overlays](docs/overlays/_index.md) add components such as Prometheus metrics.
 
-> **Optional:** The [metrics overlay](#install-with-metrics) adds Prometheus Operator, a Prometheus instance, and Kafka metrics collection via PodMonitors.
+See [What Gets Deployed](docs/_index.md#what-gets-deployed) for the full component breakdown.
 
 ## Prerequisites
 
-- `kubectl` v1.27 or later (for Kustomize v5.0 `labels` transformer support)
-- A running Kubernetes cluster (minikube, KIND, etc.)
-- An Ingress controller for StreamsHub Console access (e.g. `minikube addons enable ingress`)
+- `kubectl` v1.27 or later
+- A running Kubernetes cluster (minikube, KIND, etc.) with an ingress controller 
+
+See [Prerequisites](docs/prerequisites.md) for full requirements and cluster setup instructions.
 
 ## Quick-Start Install
 
@@ -33,231 +28,53 @@ curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/
 
 This script installs operators, waits for them to become ready, then deploys the operands.
 
-### Configuration
-
-The install script accepts the following environment variables:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REPO` | `streamshub/developer-quickstart` | GitHub repository path |
-| `REF` | `main` | Git ref, branch, or tag |
-| `OVERLAY` | *(empty)* | Overlay to apply (e.g. `metrics`) |
-| `TIMEOUT` | `120s` | `kubectl wait` timeout |
-
-Example with a pinned version:
-
-```shell
-curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/install.sh | REF=v1.0.0 bash
-```
-
-### Install with Metrics
-
-Deploy the stack with Prometheus metrics collection:
+To install with an overlay (e.g. metrics):
 
 ```shell
 curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/install.sh | OVERLAY=metrics bash
 ```
 
-This adds the Prometheus Operator and a Prometheus instance (namespace: `monitoring`), enables Kafka metrics via [Strimzi Metrics Reporter](https://strimzi.io/docs/operators/latest/deploying#proc-metrics-kafka-str), and wires Console to display metrics.
+See [Installation](docs/installation.md) for configuration options, manual install steps, and installing from a local checkout.
 
-## Manual Install
+## Accessing Services
 
-If you prefer to control each step, the stack is installed in two phases:
-
-### Phase 1 — Operators and CRDs
+After installation, use port-forwarding to access the Console:
 
 ```shell
-kubectl apply -k 'https://github.com/streamshub/developer-quickstart//overlays/core/base?ref=main'
+kubectl port-forward -n streamshub-console svc/streamshub-console-console-service 8090:80
 ```
 
-Wait for the operators to become ready:
+Open [http://localhost:8090](http://localhost:8090) in your browser.
 
-```shell
-kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi --timeout=120s
-kubectl wait --for=condition=Available deployment/apicurio-registry-operator -n apicurio-registry --timeout=120s
-kubectl wait --for=condition=Available deployment/streamshub-console-operator -n streamshub-console --timeout=120s
-```
-
-### Phase 2 — Operands
-
-```shell
-kubectl apply -k 'https://github.com/streamshub/developer-quickstart//overlays/core/stack?ref=main'
-```
-
-### Manual Install with Metrics
-
-To include the metrics overlay, use the `overlays/metrics` paths instead of `overlays/core`.
-
-```shell
-# Phase 1
-kubectl create -k 'https://github.com/streamshub/developer-quickstart//overlays/metrics/base?ref=main'
-kubectl wait --for=condition=Available deployment/prometheus-operator -n monitoring --timeout=120s
-kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi --timeout=120s
-kubectl wait --for=condition=Available deployment/apicurio-registry-operator -n apicurio-registry --timeout=120s
-kubectl wait --for=condition=Available deployment/streamshub-console-operator -n streamshub-console --timeout=120s
-
-# Phase 2
-kubectl apply -k 'https://github.com/streamshub/developer-quickstart//overlays/metrics/stack?ref=main'
-```
-
-## Accessing the Console
-
-### Minikube
-
-When using minikube, enable the ingress addon (if not already enabled):
-
-```bash
-minikube addons enable ingress
-```
-
-Then use port-forwarding to access the console:
-
-```bash
-kubectl port-forward -n streamshub-console svc/streamshub-console-console-service 8080:80
-```
-
-Open [http://localhost:8080](http://localhost:8080) in your browser.
-
-### Kind
-
-When using Kind, create the cluster with ingress-ready port mappings:
-
-```bash
-cat <<EOF | kind create cluster --config=-
-kind: Cluster
-apiVersion: kind.x-k8s.io/v1alpha4
-nodes:
-  - role: control-plane
-    kubeadmConfigPatches:
-      - |
-        kind: InitConfiguration
-        nodeRegistration:
-          kubeletExtraArgs:
-            node-labels: "ingress-ready=true"
-    extraPortMappings:
-      - containerPort: 80
-        hostPort: 80
-        protocol: TCP
-      - containerPort: 443
-        hostPort: 443
-        protocol: TCP
-EOF
-```
-
-Then deploy an ingress controller (e.g. ingress-nginx):
-
-```bash
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.1/deploy/static/provider/kind/deploy.yaml
-kubectl wait --namespace ingress-nginx \
-  --for=condition=Ready pod \
-  --selector=app.kubernetes.io/component=controller \
-  --timeout=120s
-```
-
-Use port-forwarding to access the console:
-
-```bash
-kubectl port-forward -n streamshub-console svc/streamshub-console-console-service 8080:80
-```
-
-Open [http://localhost:8080](http://localhost:8080) in your browser.
+See [Accessing Services](docs/accessing-services.md) for Kafka, Apicurio Registry access, and platform-specific instructions.
 
 ## Teardown
 
-### Using the Uninstall Script
-
-The uninstall script handles safe teardown with shared-cluster safety checks:
+Remove the quick-start stack:
 
 ```shell
 curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/uninstall.sh | bash
-
-# If installed with the metrics overlay:
-curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/uninstall.sh | OVERLAY=metrics bash
 ```
 
-The script:
-1. Deletes operand custom resources and waits for finalizers to complete
-2. Checks each operator group for non-quick-start CRs on the cluster
-3. Fully removes operator groups with no shared CRDs
-4. For shared operator groups, removes only the operator deployment (retaining CRDs)
-5. Reports any retained groups and remaining resources
+See [Uninstallation](docs/uninstallation.md) for metrics overlay uninstall, manual teardown, and shared-cluster safety details.
 
-### Manual Teardown
+## Documentation
 
-**Phase 1 — Delete operands:**
+Full documentation is available in the [`docs/`](docs/) directory:
 
-```shell
-kubectl delete -k 'https://github.com/streamshub/developer-quickstart//overlays/core/stack?ref=main'
-```
-
-Wait for all custom resources to be fully removed before proceeding.
-
-**Phase 2 — Delete operators and CRDs:**
-
-> **Warning:** On shared clusters, deleting CRDs will cascade-delete ALL custom resources of that type cluster-wide. Check for non-quick-start resources first:
-> ```shell
-> kubectl get kafkas -A --selector='!app.kubernetes.io/part-of=streamshub-developer-quickstart'
-> ```
-
-```shell
-kubectl delete -k 'https://github.com/streamshub/developer-quickstart//overlays/core/base?ref=main'
-```
-
-For the metrics overlay, use `overlays/metrics/base` and `overlays/metrics/stack` instead.
-
-### Finding Quick-Start Resources
-
-All resources carry the label `app.kubernetes.io/part-of=streamshub-developer-quickstart`:
-
-```shell
-kubectl get all -A -l app.kubernetes.io/part-of=streamshub-developer-quickstart
-kubectl get crds,clusterroles,clusterrolebindings -l app.kubernetes.io/part-of=streamshub-developer-quickstart
-```
+- [Prerequisites](docs/prerequisites.md) — requirements and cluster setup
+- [Installation](docs/installation.md) — all install methods, configuration, and local development
+- [Accessing Services](docs/accessing-services.md) — Console, Kafka, and Registry access
+- [Architecture](docs/architecture.md) — deployment model, Kustomize structure, versioning
+- [Overlays](docs/overlays/_index.md) — optional extensions (metrics, etc.)
+- [Uninstallation](docs/uninstallation.md) — safe teardown on any cluster
+- [Troubleshooting](docs/troubleshooting.md) — common issues and diagnostics
 
 ## Development
 
-### Updating Component Versions
-
-Use the `update-version.sh` script to update component versions:
-
-```shell
-# List available versions
-./update-version.sh --list strimzi
-
-# Preview changes
-./update-version.sh --dry-run strimzi 0.52.0
-
-# Check if a release exists
-./update-version.sh --check apicurio-registry 3.2.0
-
-# Update a component
-./update-version.sh strimzi 0.52.0
-```
-
-Supported components: `strimzi`, `apicurio-registry`, `streamshub-console`, `prometheus-operator`
-
-### Testing scripts locally
-
-When developing changes to the kustomization files, use the `LOCAL_DIR` environment
-variable to point the install and uninstall scripts at your local checkout instead
-of the remote GitHub repository:
-
-```shell
-# Install from local repo
-LOCAL_DIR=. ./install.sh
-
-# Uninstall from local repo
-LOCAL_DIR=. ./uninstall.sh
-```
-
-When `LOCAL_DIR` is set, `REPO` and `REF` are ignored — the scripts resolve
-kustomization paths relative to the given directory.
-
-You can also provide an absolute path:
-
-```shell
-LOCAL_DIR=/home/user/repos/developer-quickstart ./install.sh
-```
+For development workflows including updating component versions and testing scripts locally, see:
+- [Updating Component Versions](docs/architecture.md#updating-component-versions)
+- [Install from a Local Checkout](docs/installation.md#install-from-a-local-checkout)
 
 ### Previewing Documentation Locally
 
@@ -348,4 +165,3 @@ The scripts accept configuration via environment variables:
 | `CONDITION_OVERRIDES` | VerifyInstall | *(empty)* | Space-separated `apiGroup=Condition` pairs |
 | `PLATFORMS` | ComputeTestMatrix | `minikube kind` | Space-separated list of target platforms |
 | `LOG_TAIL_LINES` | Debug | `30` | Number of log lines to tail per pod |
-
