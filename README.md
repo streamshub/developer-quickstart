@@ -104,11 +104,10 @@ kubectl apply -k 'https://github.com/streamshub/developer-quickstart//overlays/m
 
 ### Minikube
 
-When using minikube, (if you didn't enable it when you created the minikube cluster) enable the ingress addon and run `minikube tunnel`:
+When using minikube, enable the ingress addon (if not already enabled):
 
 ```bash
 minikube addons enable ingress
-minikube tunnel
 ```
 
 Then use port-forwarding to access the console:

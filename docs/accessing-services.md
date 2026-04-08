@@ -13,15 +13,13 @@ For the Console to startup correctly and be accessible, you need an Ingress cont
 
 #### minikube
 
-Enable the ingress addon (if not already enabled) and start a tunnel:
+Enable the ingress addon (if not already enabled):
 
 ```shell
 minikube addons enable ingress
-minikube tunnel
 ```
 
-You will need to leave the tunnel running in an open terminal.
-Switch to a new terminal and use port-forwarding to access the console:
+Use port-forwarding to access the console:
 
 ```bash
 kubectl port-forward -n streamshub-console svc/streamshub-console-console-service 8090:80
