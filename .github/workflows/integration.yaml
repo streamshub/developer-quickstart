@@ -4,7 +4,25 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'components/**'
+      - 'overlays/**'
+      - 'install.sh'
+      - 'uninstall.sh'
+      - '.github/workflows/integration.yaml'
+      - '.github/actions/**'
+      - '.github/scripts/**'
+      - '.github/config/**'
   pull_request:
+    paths:
+      - 'components/**'
+      - 'overlays/**'
+      - 'install.sh'
+      - 'uninstall.sh'
+      - '.github/workflows/integration.yaml'
+      - '.github/actions/**'
+      - '.github/scripts/**'
+      - '.github/config/**'
 
 jobs:
   compute-matrix:
