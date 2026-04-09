@@ -191,6 +191,9 @@ main() {
         echo "  kubectl get prometheus -n monitoring"
         echo "  kubectl get podmonitor -n monitoring"
     fi
+    echo ""
+    echo "Note: It may take several minutes for all resources to become ready."
+    echo ""
 }
 
 main
