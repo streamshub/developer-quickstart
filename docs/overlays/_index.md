@@ -24,4 +24,5 @@ curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/
 
 | Overlay               | Description                                                                                                                          |
 |-----------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| [core](core.md)       | The default stack: Strimzi, Kafka, Apicurio Registry, and StreamsHub Console. No `OVERLAY` variable needed.                          |
 | [metrics](metrics.md) | Adds Prometheus Operator, a Prometheus instance, and Kafka metrics collection via PodMonitors. Wires the Console to display metrics. |

@@ -1,7 +1,7 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //DEPS org.junit.jupiter:junit-jupiter:6.0.3
 //DEPS org.junit.platform:junit-platform-launcher:6.0.3
-//SOURCES ComputeTestMatrix.java
+//SOURCES ../ComputeTestMatrix.java
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

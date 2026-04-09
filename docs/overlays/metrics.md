@@ -1,6 +1,8 @@
 +++
 title = 'Metrics'
 weight = 1
+cpu_total = '4 CPU cores'
+memory_total = '5 GiB'
 +++
 
 # Metrics Overlay
@@ -52,6 +54,11 @@ The overlay also patches existing resources:
 
 - Kafka — enables the [Strimzi Metrics Reporter](https://strimzi.io/docs/operators/latest/deploying#proc-metrics-kafka-str) on the `dev-cluster`, exposing JMX metrics at `/metrics`
 - Console — adds Prometheus as a metrics data source so the Console UI displays Kafka metrics
+
+## Resource Requirements
+
+The metrics overlay requires at least {{< param cpu_total >}} and {{< param memory_total >}} of allocatable cluster resources.
+This includes the resources for the [core](core.md) stack plus the additional monitoring components listed above.
 
 ## How Metrics Flow
 
