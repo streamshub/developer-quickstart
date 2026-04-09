@@ -4,6 +4,25 @@ metadata:
   name: streamshub-console
 spec:
   hostname: console.streamshub.local
+  containers:
+    api:
+      spec:
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+    ui:
+      spec:
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
   kafkaClusters:
     - name: dev-cluster
       namespace: kafka

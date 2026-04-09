@@ -3,4 +3,27 @@ kind: ApicurioRegistry3
 metadata:
   name: apicurio-registry
 spec:
-  app: {}
+  app:
+    podTemplateSpec:
+      spec:
+        containers:
+          - name: apicurio-registry-app
+            resources:
+              requests:
+                cpu: 500m
+                memory: 512Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+  ui:
+    podTemplateSpec:
+      spec:
+        containers:
+          - name: apicurio-registry-ui
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: 100m
+                memory: 256Mi

@@ -25,3 +25,23 @@ patches:
       - op: replace
         path: /subjects/0/namespace
         value: streamshub-console
+  - target:
+      kind: Deployment
+      name: streamshub-console-operator
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: streamshub-console-operator
+      spec:
+        template:
+          spec:
+            containers:
+              - name: streamshub-console-operator
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+                  limits:
+                    cpu: 500m
+                    memory: 256Mi
