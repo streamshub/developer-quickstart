@@ -137,11 +137,13 @@ The test scripts are [JBang](https://www.jbang.dev/) scripts located in `.github
 | `VerifyUninstall.java` | Verifies all quickstart resources are removed |
 | `VerifyResourceLimits.java` | Verifies all containers and CRs have resource limits |
 | `VerifyDocumentedResources.java` | Verifies documented resource totals match kustomize output |
+| `ShowOverlayResources.java` | Shows per-component resource breakdown and suggests frontmatter values |
 | `Debug.java` | Dumps diagnostic info (CR status, events, pod logs) |
 | `CrdSchemaUtils.java` | Shared CRD schema introspection utilities |
 | `tests/ComputeTestMatrixTest.java` | Unit tests for the matrix computation logic |
 | `tests/VerifyResourceLimitsTest.java` | Unit tests for resource limit verification |
 | `tests/VerifyDocumentedResourcesTest.java` | Unit tests for documented resource verification |
+| `tests/ShowOverlayResourcesTest.java` | Unit tests for overlay resource breakdown |
 
 To run the unit tests:
 
@@ -166,7 +168,7 @@ The scripts accept configuration via environment variables:
 
 | Variable | Used by | Default | Description |
 |----------|---------|---------|-------------|
-| `OVERLAY` | VerifyInstall, Debug | `core` | Overlay name to verify |
+| `OVERLAY` | VerifyInstall, ShowOverlayResources, Debug | `core` | Overlay name to verify |
 | `TIMEOUT` | VerifyInstall | `600s` | Wait timeout (supports `s`, `m`, `h` suffixes) |
 | `CONDITION_OVERRIDES` | VerifyInstall | *(empty)* | Space-separated `apiGroup=Condition` pairs |
 | `PLATFORMS` | ComputeTestMatrix | `minikube kind` | Space-separated list of target platforms |

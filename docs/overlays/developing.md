@@ -29,15 +29,16 @@ The `VerifyDocumentedResources` script checks that every overlay directory has a
 ### Adding a New Overlay — Checklist
 
 1. Create `overlays/<name>/base/kustomization.yaml` and `overlays/<name>/stack/kustomization.yaml`
-2. Create `docs/overlays/<name>.md` with TOML frontmatter containing `cpu_total` and `memory_total`
-3. Set resource limits on all Deployment containers and custom resource fields
-4. Verify locally with `OVERLAY=<name> jbang .github/scripts/VerifyResourceLimits.java`
-5. Verify documentation totals with `jbang .github/scripts/VerifyDocumentedResources.java`
+2. Set resource limits on all Deployment containers and relevant custom resource fields
+3. Run `OVERLAY=<name> jbang .github/scripts/ShowOverlayResources.java` to see the per-component breakdown and suggested frontmatter values
+4. Create `docs/overlays/<name>.md` with TOML frontmatter containing `cpu_total` and `memory_total` (use the suggested values from step 3)
+5. Verify locally with `OVERLAY=<name> jbang .github/scripts/VerifyResourceLimits.java`
+6. Verify documentation totals with `jbang .github/scripts/VerifyDocumentedResources.java`
 
 ## Resource Limits
 
 Every container in the overlay must have `resources.requests` and `resources.limits` with both `cpu` and `memory` specified. 
-Requests must equal limits (Guaranteed QoS).
+Requests must equal limits.
 
 This applies to:
 
@@ -89,3 +90,14 @@ jbang .github/scripts/VerifyDocumentedResources.java
 ```
 
 This script auto-discovers all overlay docs with `cpu_total` and `memory_total` frontmatter, sums the actual resources from `kustomize build`, and checks that the documented values are sufficient.
+
+### Calculating Resource Totals
+
+To see the per-component resource breakdown and the suggested `cpu_total` / `memory_total` values for your overlay:
+
+```shell
+OVERLAY=core jbang .github/scripts/ShowOverlayResources.java
+```
+
+The script shows every Deployment container and custom resource field with its CPU and memory requests, then prints the totals and suggests round-up values suitable for the frontmatter.
+This is a helper tool — it does not enforce anything and always exits successfully.

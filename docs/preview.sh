@@ -17,6 +17,11 @@ DOCS_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "${DOCS_DIR}/.." && pwd)"
 SITE_DIR="${REPO_DIR}/.docs-preview"
 THEME_REPO="https://github.com/alex-shpak/hugo-book.git"
+# To update the theme, change THEME_REF to the desired commit SHA from
+# https://github.com/alex-shpak/hugo-book/commits/main
+# The script detects mismatches and re-fetches automatically.
+# This commit matches the version used by the streamshub-site.
+THEME_REF="9d6ad30e9e44077846ece81cdd9e59122fccf4af"
 THEME_DIR="${SITE_DIR}/themes/hugo-book"
 
 ## Check prerequisites ##
@@ -40,11 +45,23 @@ fi
 
 ## Fetch theme (cached across runs) ##
 
-if [ ! -d "${THEME_DIR}" ]; then
-    echo "Fetching hugo-book theme..."
-    git clone --depth 1 "${THEME_REPO}" "${THEME_DIR}"
+fetch_theme() {
+    echo "Fetching hugo-book theme at ${THEME_REF}..."
+    rm -rf "${THEME_DIR}"
+    mkdir -p "${THEME_DIR}"
+    git -C "${THEME_DIR}" init -q
+    git -C "${THEME_DIR}" remote add origin "${THEME_REPO}"
+    git -C "${THEME_DIR}" fetch --depth 1 origin "${THEME_REF}"
+    git -C "${THEME_DIR}" checkout -q FETCH_HEAD
+}
+
+if [ ! -d "${THEME_DIR}/.git" ]; then
+    fetch_theme
+elif ! git -C "${THEME_DIR}" cat-file -e "${THEME_REF}^{commit}" 2>/dev/null; then
+    echo "Cached theme is at a different version; updating..."
+    fetch_theme
 else
-    echo "Using cached hugo-book theme."
+    echo "Using cached hugo-book theme (${THEME_REF:0:12})."
 fi
 
 ## Generate hugo.toml ##
