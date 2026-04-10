@@ -1,7 +1,7 @@
 +++
 title = 'Metrics'
 weight = 1
-cpu_total = '4 CPU cores'
+cpu_total = '3 CPU cores'
 memory_total = '5 GiB'
 +++
 

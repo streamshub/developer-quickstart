@@ -202,8 +202,8 @@ public class CrdSchemaUtils {
     }
 
     /**
-     * Check that {@code resources.requests} equals {@code resources.limits}
-     * for both CPU and memory (Guaranteed QoS invariant).
+     * Check that {@code resources.requests} does not exceed {@code resources.limits}
+     * for both CPU and memory.
      *
      * <p>Uses numeric comparison via Fabric8 {@link Quantity} so semantically
      * equal values in different formats (e.g., {@code "1"} vs {@code "1000m"})
@@ -211,10 +211,10 @@ public class CrdSchemaUtils {
      *
      * @param resources the resources map (with "requests" and "limits" sub-maps)
      * @param prefix    a human-readable prefix for error messages
-     * @return list of invariant violation messages (empty if requests == limits)
+     * @return list of invariant violation messages (empty if requests &lt;= limits)
      */
     @SuppressWarnings("unchecked")
-    static List<String> checkRequestsEqualsLimits(Map<String, Object> resources, String prefix) {
+    static List<String> checkRequestsNotExceedLimits(Map<String, Object> resources, String prefix) {
         List<String> errors = new ArrayList<>();
         if (resources == null) return errors;
 
@@ -228,17 +228,17 @@ public class CrdSchemaUtils {
         if (requests.containsKey("cpu") && limits.containsKey("cpu")) {
             long reqCpu = parseCpuMillis(requests.get("cpu"));
             long limCpu = parseCpuMillis(limits.get("cpu"));
-            if (reqCpu != limCpu) {
+            if (reqCpu > limCpu) {
                 errors.add(prefix + " requests.cpu (" + reqCpu
-                        + "m) != limits.cpu (" + limCpu + "m)");
+                        + "m) > limits.cpu (" + limCpu + "m)");
             }
         }
         if (requests.containsKey("memory") && limits.containsKey("memory")) {
             long reqMem = parseMemoryMiB(requests.get("memory"));
             long limMem = parseMemoryMiB(limits.get("memory"));
-            if (reqMem != limMem) {
+            if (reqMem > limMem) {
                 errors.add(prefix + " requests.memory (" + reqMem
-                        + "Mi) != limits.memory (" + limMem + "Mi)");
+                        + "Mi) > limits.memory (" + limMem + "Mi)");
             }
         }
 

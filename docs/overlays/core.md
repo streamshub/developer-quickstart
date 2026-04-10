@@ -1,7 +1,7 @@
 +++
 title = 'Core'
 weight = 0
-cpu_total = '4 CPU cores'
+cpu_total = '3 CPU cores'
 memory_total = '4.5 GiB'
 +++
 

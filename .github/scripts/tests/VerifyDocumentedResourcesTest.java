@@ -308,7 +308,7 @@ public class VerifyDocumentedResourcesTest {
     }
 
     @Test
-    void detectsRequestsNotEqualLimitsCpu() {
+    void passesWhenRequestsBelowLimitsCpu() {
         Map<String, Object> resources = Map.of(
                 "requests", Map.of("cpu", "200m", "memory", "256Mi"),
                 "limits", Map.of("cpu", "500m", "memory", "256Mi"));
@@ -317,12 +317,11 @@ public class VerifyDocumentedResourcesTest {
                 VerifyDocumentedResources.extractResourceValues(resources, "test");
 
         assertEquals(200, totals.cpuMillis);
-        assertEquals(1, totals.invariantErrors.size());
-        assertTrue(totals.invariantErrors.get(0).contains("requests.cpu"));
+        assertTrue(totals.invariantErrors.isEmpty());
     }
 
     @Test
-    void detectsRequestsNotEqualLimitsMemory() {
+    void passesWhenRequestsBelowLimitsMemory() {
         Map<String, Object> resources = Map.of(
                 "requests", Map.of("cpu", "200m", "memory", "256Mi"),
                 "limits", Map.of("cpu", "200m", "memory", "512Mi"));
@@ -331,6 +330,33 @@ public class VerifyDocumentedResourcesTest {
                 VerifyDocumentedResources.extractResourceValues(resources, "test");
 
         assertEquals(256, totals.memoryMiB);
+        assertTrue(totals.invariantErrors.isEmpty());
+    }
+
+    @Test
+    void detectsRequestsExceedingLimitsCpu() {
+        Map<String, Object> resources = Map.of(
+                "requests", Map.of("cpu", "500m", "memory", "256Mi"),
+                "limits", Map.of("cpu", "200m", "memory", "256Mi"));
+
+        VerifyDocumentedResources.ResourceTotals totals =
+                VerifyDocumentedResources.extractResourceValues(resources, "test");
+
+        assertEquals(500, totals.cpuMillis);
+        assertEquals(1, totals.invariantErrors.size());
+        assertTrue(totals.invariantErrors.get(0).contains("requests.cpu"));
+    }
+
+    @Test
+    void detectsRequestsExceedingLimitsMemory() {
+        Map<String, Object> resources = Map.of(
+                "requests", Map.of("cpu", "200m", "memory", "512Mi"),
+                "limits", Map.of("cpu", "200m", "memory", "256Mi"));
+
+        VerifyDocumentedResources.ResourceTotals totals =
+                VerifyDocumentedResources.extractResourceValues(resources, "test");
+
+        assertEquals(512, totals.memoryMiB);
         assertEquals(1, totals.invariantErrors.size());
         assertTrue(totals.invariantErrors.get(0).contains("requests.memory"));
     }

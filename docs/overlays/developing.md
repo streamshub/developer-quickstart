@@ -38,7 +38,6 @@ The `VerifyDocumentedResources` script checks that every overlay directory has a
 ## Resource Limits
 
 Every container in the overlay must have `resources.requests` and `resources.limits` with both `cpu` and `memory` specified. 
-Requests must equal limits.
 
 This applies to:
 

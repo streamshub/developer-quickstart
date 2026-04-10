@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
  * the kustomize output and asserts that documented values are greater
  * than or equal to the actual values.
  *
- * <p>Also verifies the invariant that resource requests equal limits
- * for every container.
+ * <p>Also verifies the invariant that resource requests do not exceed
+ * limits for every container.
  */
 public class VerifyDocumentedResources {
 
@@ -133,12 +133,12 @@ public class VerifyDocumentedResources {
                 System.out.println("  memory: " + docMemoryMiB + "Mi >= " + totals.memoryMiB + "Mi - OK");
             }
 
-            // Check requests == limits invariant
+            // Check requests <= limits invariant
             if (totals.invariantErrors.isEmpty()) {
-                System.out.println("  requests == limits invariant: OK");
+                System.out.println("  requests <= limits invariant: OK");
             } else {
                 allErrors.addAll(totals.invariantErrors);
-                System.out.println("  requests == limits invariant: FAILED ("
+                System.out.println("  requests <= limits invariant: FAILED ("
                         + totals.invariantErrors.size() + " violation(s))");
             }
 
@@ -427,7 +427,7 @@ public class VerifyDocumentedResources {
 
     /**
      * Extract CPU and memory request values from a resources object,
-     * and verify the requests == limits invariant.
+     * and verify the requests &lt;= limits invariant.
      */
     @SuppressWarnings("unchecked")
     static ResourceTotals extractResourceValues(Object resourcesObj, String prefix) {
@@ -449,7 +449,7 @@ public class VerifyDocumentedResources {
             }
         }
 
-        List<String> invariantErrors = CrdSchemaUtils.checkRequestsEqualsLimits(resources, prefix);
+        List<String> invariantErrors = CrdSchemaUtils.checkRequestsNotExceedLimits(resources, prefix);
 
         return new ResourceTotals(cpu, memory, invariantErrors);
     }

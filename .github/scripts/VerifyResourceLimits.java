@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  * Optional features (where the parent path doesn't exist in the CR)
  * are skipped.
  *
- * <p>Also verifies that resource requests equal limits (Guaranteed QoS).
+ * <p>Also verifies that resource requests do not exceed limits.
  *
  * <p>Environment variables:
  * <ul>
@@ -239,8 +239,8 @@ public class VerifyResourceLimits {
             if (!limMap.containsKey("memory")) errors.add(prefix + " missing resources.limits.memory");
         }
 
-        // Verify requests == limits invariant (Guaranteed QoS)
-        errors.addAll(CrdSchemaUtils.checkRequestsEqualsLimits(resources, prefix));
+        // Verify requests <= limits invariant
+        errors.addAll(CrdSchemaUtils.checkRequestsNotExceedLimits(resources, prefix));
 
         return errors;
     }

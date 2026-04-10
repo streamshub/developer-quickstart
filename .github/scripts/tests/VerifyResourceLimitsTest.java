@@ -308,30 +308,48 @@ public class VerifyResourceLimitsTest {
         assertEquals(4, errors.size());
     }
 
-    // --- requests == limits invariant tests ---
+    // --- requests <= limits invariant tests ---
 
     @Test
-    void rejectsRequestsNotEqualLimitsCpu() {
+    void passesWhenRequestsBelowLimitsCpu() {
         Map<String, Object> resources = Map.of(
                 "requests", Map.of("cpu", "200m", "memory", "256Mi"),
                 "limits", Map.of("cpu", "500m", "memory", "256Mi"));
 
         List<String> errors = VerifyResourceLimits.checkResourcesObject(resources, "test");
-        assertEquals(1, errors.size());
-        assertTrue(errors.get(0).contains("requests.cpu"));
-        assertTrue(errors.get(0).contains("!="));
+        assertTrue(errors.isEmpty(), "Expected no errors but got: " + errors);
     }
 
     @Test
-    void rejectsRequestsNotEqualLimitsMemory() {
+    void passesWhenRequestsBelowLimitsMemory() {
         Map<String, Object> resources = Map.of(
                 "requests", Map.of("cpu", "200m", "memory", "256Mi"),
                 "limits", Map.of("cpu", "200m", "memory", "512Mi"));
 
         List<String> errors = VerifyResourceLimits.checkResourcesObject(resources, "test");
+        assertTrue(errors.isEmpty(), "Expected no errors but got: " + errors);
+    }
+
+    @Test
+    void rejectsRequestsExceedingLimitsCpu() {
+        Map<String, Object> resources = Map.of(
+                "requests", Map.of("cpu", "500m", "memory", "256Mi"),
+                "limits", Map.of("cpu", "200m", "memory", "256Mi"));
+
+        List<String> errors = VerifyResourceLimits.checkResourcesObject(resources, "test");
+        assertEquals(1, errors.size());
+        assertTrue(errors.get(0).contains("requests.cpu"));
+    }
+
+    @Test
+    void rejectsRequestsExceedingLimitsMemory() {
+        Map<String, Object> resources = Map.of(
+                "requests", Map.of("cpu", "200m", "memory", "512Mi"),
+                "limits", Map.of("cpu", "200m", "memory", "256Mi"));
+
+        List<String> errors = VerifyResourceLimits.checkResourcesObject(resources, "test");
         assertEquals(1, errors.size());
         assertTrue(errors.get(0).contains("requests.memory"));
-        assertTrue(errors.get(0).contains("!="));
     }
 
     @Test
