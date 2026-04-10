@@ -54,6 +54,8 @@ jobs:
         if: matrix.platform == 'minikube'
         uses: medyagh/setup-minikube@e9e035a86bbc3caea26a450bd4dbf9d0c453682e # v0.0.21
         with:
+          cpus: 'max'
+          memory: 10g
           minikube-version: 'latest'
           addons: registry,ingress,ingress-dns
           insecure-registry: 'localhost:5000,10.0.0.0/24'
@@ -79,3 +81,4 @@ jobs:
         with:
           overlay: ${{ matrix.overlay }}
           condition-overrides: ${{ matrix.condition-overrides }}
+          timeout: '600s'
