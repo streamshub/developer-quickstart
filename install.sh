@@ -31,7 +31,7 @@ LOCAL_DIR="${LOCAL_DIR:-}"
 REPO="${REPO:-streamshub/developer-quickstart}"
 REF="${REF:-main}"
 OVERLAY="${OVERLAY:-}"
-TIMEOUT="${TIMEOUT:-120s}"
+TIMEOUT="${TIMEOUT:-180s}"
 
 # Color output helpers
 RED='\033[0;31m'
