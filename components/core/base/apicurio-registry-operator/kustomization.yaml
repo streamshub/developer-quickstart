@@ -27,10 +27,10 @@ patches:
       - op: replace
         path: /metadata/name
         value: apicurio-registry-operator
-  # Set watched namespaces (replace OLM valueFrom with direct value)
+  # Set resources, startup probe, and watched namespaces (replace OLM valueFrom with direct value)
   - target:
       kind: Deployment
-      name: apicurio-registry-operator
+      labelSelector: app.kubernetes.io/name=apicurio-registry-operator
     patch: |-
       apiVersion: apps/v1
       kind: Deployment
@@ -41,6 +41,16 @@ patches:
           spec:
             containers:
               - name: apicurio-registry-operator
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 512Mi
+                  limits:
+                    cpu: 500m
+                    memory: 512Mi
+                startupProbe:
+                  periodSeconds: 10
+                  failureThreshold: 30
                 env:
                   - name: APICURIO_OPERATOR_WATCHED_NAMESPACES
                     value: ''

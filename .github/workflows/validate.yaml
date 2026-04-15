@@ -15,12 +15,51 @@ on:
       - '.docs-preview/**'
 
 jobs:
+  shellcheck:
+    name: Lint shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
+        with:
+          version: v0.11.0
+          scandir: "."
+
+  yamllint:
+    name: Lint YAML files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install yamllint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yamllint
+
+      - name: Run yamllint
+        run: yamllint -d relaxed .
+
+  discover-overlays:
+    name: Discover overlays
+    runs-on: ubuntu-latest
+    outputs:
+      overlays: ${{ steps.find.outputs.overlays }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: List overlay directories
+        id: find
+        run: echo "overlays=$(ls -d overlays/*/ | xargs -n1 basename | jq -R -s -c 'split("\n") | map(select(. != ""))')" >> "$GITHUB_OUTPUT"
+
   kustomize-build:
     name: Validate Kustomize (${{ matrix.overlay }}/${{ matrix.layer }})
+    needs: [discover-overlays]
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        overlay: [core, metrics]
+        overlay: ${{ fromJSON(needs.discover-overlays.outputs.overlays) }}
         layer: [base, stack]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -36,29 +75,38 @@ jobs:
           kubectl kustomize overlays/${{ matrix.overlay }}/${{ matrix.layer }}/ \
             | grep -q 'app.kubernetes.io/part-of: streamshub-developer-quickstart'
 
-  shellcheck:
-    name: Lint shell scripts
+  verify-resource-limits:
+    name: Verify resource limits (${{ matrix.overlay }})
+    needs: [discover-overlays]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        overlay: ${{ fromJSON(needs.discover-overlays.outputs.overlays) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@776406bce94f63e41d621b960d78ee25c8b76ede # v4.0.1
+
+      - name: Set up JBang
+        uses: jbangdev/setup-jbang@2b1b465a7b75f4222b81426f23a01e013aa7b95c # v0.1.1
+
+      - name: Verify resource limits
+        env:
+          OVERLAY: ${{ matrix.overlay }}
+        run: jbang .github/scripts/VerifyResourceLimits.java
+
+  verify-documented-resources:
+    name: Verify documented resources
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Run ShellCheck
-        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
-        with:
-          version: v0.11.0
-          scandir: "."
-          additional_files: "install.sh uninstall.sh update-version.sh"
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@776406bce94f63e41d621b960d78ee25c8b76ede # v4.0.1
 
-  yamllint:
-    name: Lint YAML files
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up JBang
+        uses: jbangdev/setup-jbang@2b1b465a7b75f4222b81426f23a01e013aa7b95c # v0.1.1
 
-      - name: Install yamllint
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y yamllint
-
-      - name: Run yamllint
-        run: yamllint -d relaxed .
+      - name: Verify documented resources match kustomize output
+        run: jbang .github/scripts/VerifyDocumentedResources.java

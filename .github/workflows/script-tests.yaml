@@ -1,0 +1,28 @@
+name: Script Tests
+
+on:
+  pull_request:
+    paths:
+      - '.github/scripts/**'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/**'
+
+jobs:
+  unit-tests:
+    name: Script unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JBang
+        uses: jbangdev/setup-jbang@2b1b465a7b75f4222b81426f23a01e013aa7b95c # v0.1.1
+
+      - name: Run all tests
+        run: |
+          for test in .github/scripts/tests/*.java; do
+            echo "--- Running $(basename "$test") ---"
+            jbang "$test"
+          done

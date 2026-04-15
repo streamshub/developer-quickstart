@@ -40,6 +40,13 @@ patches:
           spec:
             containers:
               - name: strimzi-cluster-operator
+                resources:
+                  requests:
+                    cpu: 200m
+                    memory: 384Mi
+                  limits:
+                    cpu: 200m
+                    memory: 384Mi
                 env:
                   - name: STRIMZI_NAMESPACE
                     value: '*'

@@ -3,16 +3,22 @@
 //DEPS org.yaml:snakeyaml:2.6
 //SOURCES ScriptUtils.java
 
+import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -119,6 +125,60 @@ public class VerifyInstall {
                 } catch (Exception e) {
                     System.err.println("ERROR: Failed to check " + ref + ": " + e.getMessage());
                     allPassed = false;
+                }
+            }
+
+            // Step 5: Verify resource limits on all quickstart pods
+            System.out.println();
+            System.out.println("--- Verifying pod resource limits ---");
+
+            Set<String> namespaces = allDocs.stream()
+                    .map(ScriptUtils::extractNamespace)
+                    .filter(ns -> ns != null && !ns.isEmpty())
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+
+            for (String ns : namespaces) {
+                List<Pod> pods = client.pods().inNamespace(ns)
+                        .withLabel("app.kubernetes.io/part-of", "streamshub-developer-quickstart")
+                        .list().getItems();
+
+                for (Pod pod : pods) {
+                    String podName = pod.getMetadata().getName();
+                    for (Container container : pod.getSpec().getContainers()) {
+                        String containerName = container.getName();
+                        ResourceRequirements resources = container.getResources();
+                        List<String> missing = new ArrayList<>();
+
+                        if (resources == null || resources.getRequests() == null
+                                || resources.getRequests().isEmpty()) {
+                            missing.add("requests");
+                        } else {
+                            if (!resources.getRequests().containsKey("cpu"))
+                                missing.add("requests.cpu");
+                            if (!resources.getRequests().containsKey("memory"))
+                                missing.add("requests.memory");
+                        }
+
+                        if (resources == null || resources.getLimits() == null
+                                || resources.getLimits().isEmpty()) {
+                            missing.add("limits");
+                        } else {
+                            if (!resources.getLimits().containsKey("cpu"))
+                                missing.add("limits.cpu");
+                            if (!resources.getLimits().containsKey("memory"))
+                                missing.add("limits.memory");
+                        }
+
+                        if (!missing.isEmpty()) {
+                            System.err.println("ERROR: Pod " + ns + "/" + podName
+                                    + " container " + containerName
+                                    + " missing: " + String.join(", ", missing));
+                            allPassed = false;
+                        } else {
+                            System.out.println("  Pod " + ns + "/" + podName
+                                    + " container " + containerName + " - OK");
+                        }
+                    }
                 }
             }
         }
