@@ -2,7 +2,7 @@
 title = 'Metrics'
 weight = 1
 cpu_total = '3 CPU cores'
-memory_total = '5 GiB'
+memory_total = '5.5 GiB'
 +++
 
 # Metrics Overlay
