@@ -6,8 +6,6 @@ weight = 0
     type = 'docs'
 +++
 
-# Developer Quick-Start
-
 Please make sure you have all the [prerequisites](prerequisites.md) covered first.
 Then you can deploy a complete, open-source, event-streaming stack on your local Kubernetes cluster (e.g. MiniKube, KIND) with a single command:
 

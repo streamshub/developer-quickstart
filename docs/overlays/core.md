@@ -5,8 +5,6 @@ cpu_total = '3 CPU cores'
 memory_total = '4.5 GiB'
 +++
 
-# Core Overlay
-
 The core overlay is the default deployment. 
 It installs the base event-streaming stack without any optional extensions.
 

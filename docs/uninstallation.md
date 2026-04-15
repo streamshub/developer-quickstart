@@ -3,8 +3,6 @@ title = 'Uninstallation'
 weight = 5
 +++
 
-# Uninstallation
-
 ## Using the Uninstall Script
 
 The uninstall script provides safe teardown with shared-cluster awareness:

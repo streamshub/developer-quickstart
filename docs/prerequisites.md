@@ -3,8 +3,6 @@ title = 'Prerequisites'
 weight = 1
 +++
 
-# Prerequisites
-
 ## Required
 
 - **kubectl v1.27 or later** — the install scripts use Kustomize v5.0 features (the `labels` transformer) which require kubectl 1.27+.

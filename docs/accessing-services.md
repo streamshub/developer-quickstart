@@ -3,8 +3,6 @@ title = 'Accessing Services'
 weight = 3
 +++
 
-# Accessing Services
-
 ## StreamsHub Console
 
 ### Ingress Access
