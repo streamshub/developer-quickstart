@@ -3,8 +3,6 @@ title = 'Overlays'
 weight = 4
 +++
 
-# Overlays
-
 The developer quick-start uses [Kustomize overlays](architecture.md) to provide optional extensions on top of the core stack. 
 Each overlay adds components that integrate with the base deployment.
 

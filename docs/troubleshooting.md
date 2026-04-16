@@ -3,8 +3,6 @@ title = 'Troubleshooting'
 weight = 7
 +++
 
-# Troubleshooting
-
 ## Operator Not Becoming Ready
 
 If an operator deployment does not reach `Ready`/`Available` within the timeout:

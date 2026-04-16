@@ -5,8 +5,6 @@ cpu_total = '3 CPU cores'
 memory_total = '5.5 GiB'
 +++
 
-# Metrics Overlay
-
 The metrics overlay extends the core stack with Prometheus-based monitoring.
 
 ## Quick-Start Install

@@ -3,8 +3,6 @@ title = 'Developing Overlays'
 weight = 100
 +++
 
-# Developing Overlays
-
 This page covers the requirements for adding or modifying overlays. 
 CI enforces various checks on the overlays automatically on every pull request.
 

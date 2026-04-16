@@ -3,8 +3,6 @@ title = 'Installation'
 weight = 2
 +++
 
-# Installation
-
 ## Quick-Start Install
 
 Deploy the entire core stack with a single command:

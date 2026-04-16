@@ -3,8 +3,6 @@ title = 'Architecture'
 weight = 6
 +++
 
-# Architecture
-
 ## Two-Phase Deployment
 
 The event stack is deployed in two sequential phases:
@@ -17,9 +15,9 @@ Operators must be running to process these resources.
 
 This separation exists for three reasons:
 
-1. **CRD registration** — Kubernetes must register CRDs before it can accept custom resources of that type
-2. **Operator readiness** — operators must be running to reconcile their custom resources
-3. **Safe teardown** — during uninstall, operands are deleted first while operators are still alive to process finalizers
+1. CRD registration — Kubernetes must register CRDs before it can accept custom resources of that type
+2. Operator readiness — operators must be running to reconcile their custom resources
+3. Safe teardown — during uninstall, operands are deleted first while operators are still alive to process finalizers
 
 The install script uses `kubectl apply --server-side` for Phase 1 to handle large CRDs (such as those from the Prometheus Operator) that exceed the annotation size limit used by client-side apply.
 
