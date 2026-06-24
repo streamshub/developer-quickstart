@@ -20,7 +20,7 @@ No `OVERLAY` variable is needed — the core overlay is used by default.
 
 ```shell
 # Phase 1 — Operators and CRDs
-kubectl apply -k 'https://github.com/streamshub/developer-quickstart//overlays/core/base?ref=main'
+kubectl apply --server-side --force-conflicts -k 'https://github.com/streamshub/developer-quickstart//overlays/core/base?ref=main'
 
 # Optionally, wait for the operators to be ready
 kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi --timeout=120s

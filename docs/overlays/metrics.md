@@ -19,7 +19,7 @@ If you prefer step-by-step control, the metrics overlay uses `overlays/metrics` 
 
 ```shell
 # Phase 1 — Operators and CRDs (includes Prometheus Operator)
-kubectl create -k 'https://github.com/streamshub/developer-quickstart//overlays/metrics/base?ref=main'
+kubectl apply --server-side --force-conflicts -k 'https://github.com/streamshub/developer-quickstart//overlays/metrics/base?ref=main'
 
 # Optionally, wait for the operators to be ready
 kubectl wait --for=condition=Available deployment/prometheus-operator -n monitoring --timeout=120s
@@ -107,6 +107,7 @@ curl -s http://localhost:9090/api/v1/targets | grep -o '"health":"up"' | wc -l
 
 Open the StreamsHub Console UI — Kafka cluster CPU and memory usage should show up straight away.
 However, other metrics such as those for topics will only show once topics have been created and messages are flowing through them.
+On minikube, disk usage metrics are not available — see [Disk Usage Metrics Empty on Minikube](#disk-usage-metrics-empty-on-minikube) below.
 
 ## Troubleshooting
 
@@ -134,4 +135,20 @@ kubectl get kafka/dev-cluster -n kafka -o jsonpath='{.spec.kafka.metricsConfig}'
 - Metrics overlay not installed — verify you used `OVERLAY=metrics` during installation
 - PodMonitor label mismatch — Prometheus selects PodMonitors with `app: strimzi`; verify the label is present
 - Kafka metrics not enabled — the metrics overlay patches the Kafka CR to add `metricsConfig`; check that it was applied
+
+### Disk Usage Metrics Empty on Minikube
+
+The Console UI shows CPU and memory graphs but the disk usage panel is empty:
+
+```shell
+# Check if volume stats are available in Prometheus
+kubectl exec -n monitoring prometheus-prometheus-0 -c prometheus -- \
+  wget -qO- 'http://localhost:9090/api/v1/query?query=kubelet_volume_stats_used_bytes' \
+  | grep -c '"result":\[\]'
+# Output of 1 means no volume stats are present
+```
+
+**Cause:**
+
+- This is a minikube platform limitation, not a configuration issue. The `kubelet_volume_stats_*` and `container_fs_usage_bytes` metrics are not exposed by minikube's kubelet and cAdvisor, particularly with the Docker driver. On production clusters (OpenShift, EKS, GKE) these metrics are available and disk usage displays correctly
 

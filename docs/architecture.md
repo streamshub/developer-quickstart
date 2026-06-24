@@ -95,3 +95,35 @@ Use the `update-version.sh` script to manage operator versions:
 Supported components: `strimzi`, `apicurio-registry`, `streamshub-console`, `prometheus-operator`
 
 The script updates the remote resource URLs in the relevant `kustomization.yaml` files to point to the new version's release artifacts.
+
+## Scaling the Kafka Cluster
+
+The default deployment uses the upstream Strimzi [`kafka-single-node.yaml`](https://github.com/strimzi/strimzi-kafka-operator/blob/0.51.0/examples/kafka/kafka-single-node.yaml) example with a single broker.
+To scale to 3 replicas, edit `components/core/stack/kafka/kustomization.yaml` and change the resource URL to use Strimzi's [`kafka-with-dual-role-nodes.yaml`](https://github.com/strimzi/strimzi-kafka-operator/blob/0.51.0/examples/kafka/kafka-with-dual-role-nodes.yaml) example instead:
+
+```yaml
+resources:
+  - https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/0.51.0/examples/kafka/kafka-with-dual-role-nodes.yaml
+  - namespace.yaml
+```
+
+This example is structurally identical to the single-node version (same KafkaNodePool name, listeners, and storage) but configures 3 replicas with the following replication settings:
+
+| Property | Value | Notes |
+|----------|-------|-------|
+| `offsets.topic.replication.factor` | 3 | |
+| `transaction.state.log.replication.factor` | 3 | |
+| `transaction.state.log.min.isr` | 2 | replicas − 1 |
+| `default.replication.factor` | 3 | |
+| `min.insync.replicas` | 2 | replicas − 1 |
+
+All existing patches (cluster rename, resource limits, entity operator config) apply without changes.
+
+For replica counts other than 1 or 3, start from either example and add patches for `spec.replicas` on the KafkaNodePool and the replication config values on the Kafka CR.
+
+**Considerations:**
+
+- **ISR values** should be `replicas − 1`, not equal to `replicas`. Setting `min.insync.replicas` equal to the replica count means a single broker failure blocks all writes
+- **KRaft quorum** — the cluster uses KRaft (no ZooKeeper) with dual-role nodes (controller + broker). An odd number of replicas (3 or 5) is recommended for controller leader election
+- **Resource usage** scales linearly — 3 replicas requires 3× the CPU and memory of a single node. You may need to increase cluster resources (e.g. `minikube start --cpus=8 --memory=12g`)
+- **Local changes** require `LOCAL_DIR=.` when using the install script, which otherwise fetches manifests from GitHub. See [Install from a Local Checkout](installation.md#install-from-a-local-checkout)
