@@ -4,7 +4,7 @@ kind: Kustomization
 namespace: apicurio-registry
 
 resources:
-  - https://raw.githubusercontent.com/Apicurio/apicurio-registry/3.1.7/operator/install/install.yaml
+  - https://raw.githubusercontent.com/Apicurio/apicurio-registry/3.3.0/operator/install/install.yaml
   - namespace.yaml
 
 labels:

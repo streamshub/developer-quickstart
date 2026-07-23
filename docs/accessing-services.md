@@ -24,6 +24,7 @@ kubectl port-forward -n streamshub-console svc/streamshub-console-console-servic
 ```
 
 Open [http://localhost:8090](http://localhost:8090) in your browser.
+Note the `http://` not `https://` in the address.
 
 #### KIND
 

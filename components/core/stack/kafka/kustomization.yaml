@@ -4,7 +4,7 @@ kind: Kustomization
 namespace: kafka
 
 resources:
-  - https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/0.51.0/examples/kafka/kafka-single-node.yaml
+  - https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/1.1.0/examples/kafka/kafka-single-node.yaml
   - namespace.yaml
 
 labels:

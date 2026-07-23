@@ -4,7 +4,7 @@ kind: Kustomization
 namespace: strimzi
 
 resources:
-  - https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.51.0/strimzi-cluster-operator-0.51.0.yaml
+  - https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-cluster-operator-1.1.0.yaml
   - namespace.yaml
   - clusterrolebindings.yaml
 
