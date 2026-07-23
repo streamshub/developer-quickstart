@@ -44,7 +44,8 @@ After installation, use port-forwarding to access the Console:
 kubectl port-forward -n streamshub-console svc/streamshub-console-console-service 8090:80
 ```
 
-Open [http://localhost:8090](http://localhost:8090) in your browser.
+Open [http://localhost:8090](http://localhost:8090) in your browser. 
+Note the `http://` NOT `https://` in the address.
 
 See [Accessing Services](docs/accessing-services.md) for Kafka, Apicurio Registry access, and platform-specific instructions.
 

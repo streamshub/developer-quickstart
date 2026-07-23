@@ -4,7 +4,7 @@ kind: Kustomization
 namespace: streamshub-console
 
 resources:
-  - https://github.com/streamshub/console/releases/download/0.11.0/streamshub-console-operator.yaml
+  - https://github.com/streamshub/console/releases/download/0.13.0/streamshub-console-operator.yaml
   - namespace.yaml
 
 labels:
