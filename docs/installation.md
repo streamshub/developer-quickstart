@@ -17,6 +17,7 @@ The script:
 2. Installs operators and CRDs (Phase 1)
 3. Waits for each operator to become ready
 4. Deploys Kafka, Registry, and Console instances (Phase 2)
+5. Verifies all operands reach their Ready state
 
 ### Install with an Overlay
 
@@ -32,13 +33,14 @@ See [Overlays](overlays/_index.md) for the list of available overlays and what e
 
 The install script accepts the following environment variables:
 
-| Variable    | Default                           | Description                                                                 |
-|-------------|-----------------------------------|-----------------------------------------------------------------------------|
-| `REPO`      | `streamshub/developer-quickstart` | GitHub repository path                                                      |
-| `REF`       | `main`                            | Git ref, branch, or tag                                                     |
-| `OVERLAY`   | *(empty)*                         | Overlay to apply (e.g. `metrics`)                                           |
-| `TIMEOUT`   | `120s`                            | `kubectl wait` timeout (supports `s`, `m`, `h` suffixes)                    |
-| `LOCAL_DIR` | *(empty)*                         | Use a local directory as the source of install files instead of GitHub URLs |
+| Variable      | Default                           | Description                                                                 |
+|---------------|-----------------------------------|-----------------------------------------------------------------------------|
+| `REPO`        | `streamshub/developer-quickstart` | GitHub repository path                                                      |
+| `REF`         | `main`                            | Git ref, branch, or tag                                                     |
+| `OVERLAY`     | *(empty)*                         | Overlay to apply (e.g. `metrics`)                                           |
+| `TIMEOUT`     | `300s`                            | Wait timeout for operators and operands (per resource)                      |
+| `SKIP_VERIFY` | *(empty)*                         | Skip operand readiness verification (set to any value)                      |
+| `LOCAL_DIR`   | *(empty)*                         | Use a local directory as the source of install files instead of GitHub URLs |
 
 **Examples:**
 
@@ -100,7 +102,15 @@ LOCAL_DIR=/home/user/repos/developer-quickstart ./install.sh
 
 ## Verify the Installation
 
-After installation, confirm all components are running:
+The install script automatically verifies that all operands (Kafka, Registry, Console) reach their Ready state before returning. If verification succeeds, it prints access instructions for the Console.
+
+To skip verification (e.g. for CI pipelines with their own checks):
+
+```shell
+curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/install.sh | SKIP_VERIFY=1 bash
+```
+
+If verification times out or you skipped it, confirm all components are running manually:
 
 ```shell
 # Check operators
@@ -112,7 +122,6 @@ kubectl get deployment -n streamshub-console streamshub-console-operator
 kubectl get kafka -n kafka
 kubectl get apicurioregistry3 -n apicurio-registry
 kubectl get console -n streamshub-console
-
 ```
 
 All operator deployments should show `READY 1/1`. Custom resources should reach `Ready` status.

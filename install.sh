@@ -17,11 +17,12 @@
 #   curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/install.sh | OVERLAY=metrics bash
 #
 # Environment variables:
-#   LOCAL_DIR - Use local directory instead of GitHub (e.g. LOCAL_DIR=.)
-#   REPO      - GitHub repo path (default: streamshub/developer-quickstart)
-#   REF       - Git ref/branch/tag (default: main)
-#   OVERLAY   - Overlay to apply (e.g. metrics). Empty = base install
-#   TIMEOUT   - kubectl wait timeout (default: 120s)
+#   LOCAL_DIR    - Use local directory instead of GitHub (e.g. LOCAL_DIR=.)
+#   REPO         - GitHub repo path (default: streamshub/developer-quickstart)
+#   REF          - Git ref/branch/tag (default: main)
+#   OVERLAY      - Overlay to apply (e.g. metrics). Empty = base install
+#   TIMEOUT      - Wait timeout for operators and operands (default: 300s)
+#   SKIP_VERIFY  - Skip operand readiness verification (set to any value)
 #
 
 set -euo pipefail
@@ -31,7 +32,8 @@ LOCAL_DIR="${LOCAL_DIR:-}"
 REPO="${REPO:-streamshub/developer-quickstart}"
 REF="${REF:-main}"
 OVERLAY="${OVERLAY:-}"
-TIMEOUT="${TIMEOUT:-180s}"
+TIMEOUT="${TIMEOUT:-300s}"
+SKIP_VERIFY="${SKIP_VERIFY:-}"
 
 # Color output helpers
 RED='\033[0;31m'
@@ -61,6 +63,48 @@ kustomize_url() {
     fi
 }
 
+# Extract timeout value in seconds from TIMEOUT variable
+timeout_seconds() {
+    local val="${TIMEOUT}"
+    val="${val%s}"
+    echo "$val"
+}
+
+# Check if a CR has a condition with the given type set to "True"
+check_cr_condition() {
+    local resource="$1"
+    local name="$2"
+    local namespace="$3"
+    local condition="$4"
+
+    local status
+    status=$(kubectl get "${resource}/${name}" -n "${namespace}" \
+        -o jsonpath="{.status.conditions[?(@.type==\"${condition}\")].status}" \
+        2>/dev/null) || return 1
+
+    [ "${status}" = "True" ]
+}
+
+# Poll a CR until it reaches the expected condition or timeout
+wait_for_cr_ready() {
+    local resource="$1"
+    local name="$2"
+    local namespace="$3"
+    local condition="$4"
+    local max_wait
+    max_wait=$(timeout_seconds)
+    local elapsed=0
+
+    while [ $elapsed -lt "$max_wait" ]; do
+        if check_cr_condition "$resource" "$name" "$namespace" "$condition"; then
+            return 0
+        fi
+        sleep 5
+        elapsed=$((elapsed + 5))
+    done
+    return 1
+}
+
 # Check prerequisites
 check_prerequisites() {
     if ! command -v kubectl &> /dev/null; then
@@ -86,10 +130,13 @@ main() {
         stack_path="overlays/${OVERLAY}/stack"
     fi
 
-    # Compute total steps based on overlay
+    # Compute total steps based on overlay and verification
     local total_steps=5
     if [ "${OVERLAY}" = "metrics" ]; then
         total_steps=6
+    fi
+    if [ -z "${SKIP_VERIFY}" ]; then
+        total_steps=$((total_steps + 1))
     fi
 
     echo ""
@@ -109,6 +156,7 @@ main() {
     echo ""
 
     local step=1
+    local verify_failed=""
 
     # --- Step: Install operators (base layer) ---
     local base_url
@@ -164,9 +212,59 @@ main() {
     kubectl apply -k "${stack_url}"
     echo ""
 
+    # --- Step: Verify operands ---
+    if [ -z "${SKIP_VERIFY}" ]; then
+        step=$((step + 1))
+        info "Step ${step}/${total_steps}: Verifying operands are ready (timeout: ${TIMEOUT})..."
+
+        # Kafka must be verified first — Console depends on it
+        info "  Waiting for Kafka cluster 'dev-cluster'..."
+        if wait_for_cr_ready "kafka.kafka.strimzi.io" "dev-cluster" "kafka" "Ready"; then
+            info "  Kafka cluster is ready"
+        else
+            warn "  Kafka cluster did not become ready within ${TIMEOUT}"
+            verify_failed=true
+        fi
+
+        info "  Waiting for Apicurio Registry..."
+        if wait_for_cr_ready "apicurioregistry3.registry.apicur.io" "apicurio-registry" "apicurio-registry" "Ready"; then
+            info "  Apicurio Registry is ready"
+        else
+            warn "  Apicurio Registry did not become ready within ${TIMEOUT}"
+            verify_failed=true
+        fi
+
+        info "  Waiting for StreamsHub Console..."
+        if wait_for_cr_ready "console.console.streamshub.github.com" "streamshub-console" "streamshub-console" "Ready"; then
+            info "  StreamsHub Console is ready"
+        else
+            warn "  StreamsHub Console did not become ready within ${TIMEOUT}"
+            verify_failed=true
+        fi
+
+        if [ "${OVERLAY}" = "metrics" ]; then
+            info "  Waiting for Prometheus..."
+            if wait_for_cr_ready "prometheus.monitoring.coreos.com" "prometheus" "monitoring" "Available"; then
+                info "  Prometheus is ready"
+            else
+                warn "  Prometheus did not become ready within ${TIMEOUT}"
+                verify_failed=true
+            fi
+        fi
+
+        echo ""
+    fi
+
     # --- Summary ---
-    info "Dev stack installation complete!"
+    if [ -z "${SKIP_VERIFY}" ] && [ "${verify_failed}" != "true" ]; then
+        info "Dev stack installation complete! All operands are ready."
+    elif [ -z "${SKIP_VERIFY}" ] && [ "${verify_failed}" = "true" ]; then
+        warn "Dev stack installation complete, but some operands are not yet ready."
+    else
+        info "Dev stack installation complete!"
+    fi
     echo ""
+
     echo "Deployed components:"
     echo "  - Strimzi operator            (namespace: strimzi)"
     echo "  - Kafka cluster 'dev-cluster' (namespace: kafka)"
@@ -180,20 +278,39 @@ main() {
         echo "  - Kafka metrics (PodMonitors) (namespace: monitoring)"
     fi
     echo ""
-    echo "Verify with:"
-    echo "  kubectl get deployment -n strimzi strimzi-cluster-operator"
-    echo "  kubectl get kafka -n kafka"
-    echo "  kubectl get deployment -n apicurio-registry apicurio-registry-operator"
-    echo "  kubectl get apicurioregistry3 -n apicurio-registry"
-    echo "  kubectl get deployment -n streamshub-console console-operator"
-    echo "  kubectl get console -n streamshub-console"
-    if [ "${OVERLAY}" = "metrics" ]; then
-        echo "  kubectl get prometheus -n monitoring"
-        echo "  kubectl get podmonitor -n monitoring"
+
+    if [ -z "${SKIP_VERIFY}" ] && [ "${verify_failed}" != "true" ]; then
+        echo "Access the Console:"
+        echo "  kubectl port-forward -n streamshub-console svc/streamshub-console-console-service 8090:80"
+        echo "  Then open http://localhost:8090"
+        echo ""
+    elif [ -z "${SKIP_VERIFY}" ] && [ "${verify_failed}" = "true" ]; then
+        echo "Check operand status:"
+        echo "  kubectl get kafka -n kafka"
+        echo "  kubectl get apicurioregistry3 -n apicurio-registry"
+        echo "  kubectl get console -n streamshub-console"
+        if [ "${OVERLAY}" = "metrics" ]; then
+            echo "  kubectl get prometheus -n monitoring"
+        fi
+        echo ""
+        echo "Some resources may still be starting up. Re-check after a few minutes."
+        echo ""
+    else
+        echo "Verify with:"
+        echo "  kubectl get deployment -n strimzi strimzi-cluster-operator"
+        echo "  kubectl get kafka -n kafka"
+        echo "  kubectl get deployment -n apicurio-registry apicurio-registry-operator"
+        echo "  kubectl get apicurioregistry3 -n apicurio-registry"
+        echo "  kubectl get deployment -n streamshub-console console-operator"
+        echo "  kubectl get console -n streamshub-console"
+        if [ "${OVERLAY}" = "metrics" ]; then
+            echo "  kubectl get prometheus -n monitoring"
+            echo "  kubectl get podmonitor -n monitoring"
+        fi
+        echo ""
+        echo "Note: It may take several minutes for all resources to become ready."
+        echo ""
     fi
-    echo ""
-    echo "Note: It may take several minutes for all resources to become ready."
-    echo ""
 }
 
 main
