@@ -63,48 +63,6 @@ kustomize_url() {
     fi
 }
 
-# Extract timeout value in seconds from TIMEOUT variable
-timeout_seconds() {
-    local val="${TIMEOUT}"
-    val="${val%s}"
-    echo "$val"
-}
-
-# Check if a CR has a condition with the given type set to "True"
-check_cr_condition() {
-    local resource="$1"
-    local name="$2"
-    local namespace="$3"
-    local condition="$4"
-
-    local status
-    status=$(kubectl get "${resource}/${name}" -n "${namespace}" \
-        -o jsonpath="{.status.conditions[?(@.type==\"${condition}\")].status}" \
-        2>/dev/null) || return 1
-
-    [ "${status}" = "True" ]
-}
-
-# Poll a CR until it reaches the expected condition or timeout
-wait_for_cr_ready() {
-    local resource="$1"
-    local name="$2"
-    local namespace="$3"
-    local condition="$4"
-    local max_wait
-    max_wait=$(timeout_seconds)
-    local elapsed=0
-
-    while [ $elapsed -lt "$max_wait" ]; do
-        if check_cr_condition "$resource" "$name" "$namespace" "$condition"; then
-            return 0
-        fi
-        sleep 5
-        elapsed=$((elapsed + 5))
-    done
-    return 1
-}
-
 # Check prerequisites
 check_prerequisites() {
     if ! command -v kubectl &> /dev/null; then
@@ -219,7 +177,8 @@ main() {
 
         # Kafka must be verified first — Console depends on it
         info "  Waiting for Kafka cluster 'dev-cluster'..."
-        if wait_for_cr_ready "kafka.kafka.strimzi.io" "dev-cluster" "kafka" "Ready"; then
+        if kubectl wait --for=condition=Ready kafka.kafka.strimzi.io/dev-cluster \
+                -n kafka --timeout="${TIMEOUT}" 2>/dev/null; then
             info "  Kafka cluster is ready"
         else
             warn "  Kafka cluster did not become ready within ${TIMEOUT}"
@@ -227,7 +186,8 @@ main() {
         fi
 
         info "  Waiting for Apicurio Registry..."
-        if wait_for_cr_ready "apicurioregistry3.registry.apicur.io" "apicurio-registry" "apicurio-registry" "Ready"; then
+        if kubectl wait --for=condition=Ready apicurioregistry3.registry.apicur.io/apicurio-registry \
+                -n apicurio-registry --timeout="${TIMEOUT}" 2>/dev/null; then
             info "  Apicurio Registry is ready"
         else
             warn "  Apicurio Registry did not become ready within ${TIMEOUT}"
@@ -235,7 +195,8 @@ main() {
         fi
 
         info "  Waiting for StreamsHub Console..."
-        if wait_for_cr_ready "console.console.streamshub.github.com" "streamshub-console" "streamshub-console" "Ready"; then
+        if kubectl wait --for=condition=Ready console.console.streamshub.github.com/streamshub-console \
+                -n streamshub-console --timeout="${TIMEOUT}" 2>/dev/null; then
             info "  StreamsHub Console is ready"
         else
             warn "  StreamsHub Console did not become ready within ${TIMEOUT}"
@@ -244,7 +205,8 @@ main() {
 
         if [ "${OVERLAY}" = "metrics" ]; then
             info "  Waiting for Prometheus..."
-            if wait_for_cr_ready "prometheus.monitoring.coreos.com" "prometheus" "monitoring" "Available"; then
+            if kubectl wait --for=condition=Available prometheus.monitoring.coreos.com/prometheus \
+                    -n monitoring --timeout="${TIMEOUT}" 2>/dev/null; then
                 info "  Prometheus is ready"
             else
                 warn "  Prometheus did not become ready within ${TIMEOUT}"
