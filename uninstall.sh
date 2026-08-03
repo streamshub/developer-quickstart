@@ -485,7 +485,7 @@ main() {
         fi
 
         # Remove prometheus-operator if metrics overlay was used
-        if [ "${OVERLAY}" = "metrics" ]; then
+        if [ "${OVERLAY}" = "metrics" ] || [ "${OVERLAY}" = "mcp-metrics" ]; then
             info "  Removing Prometheus operator..."
             local prom_url
             prom_url=$(kustomize_url "components/metrics/base/prometheus-operator")

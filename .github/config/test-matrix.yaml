@@ -24,3 +24,5 @@
 overlays:
   metrics:
     condition-overrides: "monitoring.coreos.com=Available"
+  mcp-metrics:
+    condition-overrides: "monitoring.coreos.com=Available"

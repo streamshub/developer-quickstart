@@ -88,10 +88,19 @@ main() {
         stack_path="overlays/${OVERLAY}/stack"
     fi
 
+    # Determine which optional features are included in this overlay
+    local has_metrics=false
+    local has_mcp=false
+    case "${OVERLAY}" in
+        metrics)     has_metrics=true ;;
+        mcp)         has_mcp=true ;;
+        mcp-metrics) has_metrics=true; has_mcp=true ;;
+    esac
+
     # Compute total steps based on overlay and verification
     local total_steps=5
-    if [ "${OVERLAY}" = "metrics" ]; then
-        total_steps=6
+    if [ "$has_metrics" = true ]; then
+        total_steps=$((total_steps + 1))
     fi
     if [ -z "${SKIP_VERIFY}" ]; then
         total_steps=$((total_steps + 1))
@@ -127,8 +136,8 @@ main() {
     kubectl apply --server-side --force-conflicts -k "${base_url}"
     echo ""
 
-    # --- Step: Wait for prometheus-operator (metrics overlay only) ---
-    if [ "${OVERLAY}" = "metrics" ]; then
+    # --- Step: Wait for prometheus-operator (metrics overlays only) ---
+    if [ "$has_metrics" = true ]; then
         step=$((step + 1))
         info "Step ${step}/${total_steps}: Waiting for prometheus-operator to be ready (timeout: ${TIMEOUT})..."
         kubectl wait --for=condition=Available deployment/prometheus-operator \
@@ -203,13 +212,24 @@ main() {
             verify_failed=true
         fi
 
-        if [ "${OVERLAY}" = "metrics" ]; then
+        if [ "$has_metrics" = true ]; then
             info "  Waiting for Prometheus..."
             if kubectl wait --for=condition=Available prometheus.monitoring.coreos.com/prometheus \
                     -n monitoring --timeout="${TIMEOUT}" 2>/dev/null; then
                 info "  Prometheus is ready"
             else
                 warn "  Prometheus did not become ready within ${TIMEOUT}"
+                verify_failed=true
+            fi
+        fi
+
+        if [ "$has_mcp" = true ]; then
+            info "  Waiting for StreamsHub MCP server..."
+            if kubectl wait --for=condition=Available deployment/streamshub-strimzi-mcp \
+                    -n streamshub-mcp --timeout="${TIMEOUT}" 2>/dev/null; then
+                info "  StreamsHub MCP server is ready"
+            else
+                warn "  StreamsHub MCP server did not become ready within ${TIMEOUT}"
                 verify_failed=true
             fi
         fi
@@ -234,10 +254,13 @@ main() {
     echo "  - Apicurio Registry instance  (namespace: apicurio-registry, storage: in-memory)"
     echo "  - StreamsHub Console operator (namespace: streamshub-console)"
     echo "  - StreamsHub Console instance (namespace: streamshub-console)"
-    if [ "${OVERLAY}" = "metrics" ]; then
+    if [ "$has_metrics" = true ]; then
         echo "  - Prometheus operator         (namespace: monitoring)"
         echo "  - Prometheus instance          (namespace: monitoring)"
         echo "  - Kafka metrics (PodMonitors) (namespace: monitoring)"
+    fi
+    if [ "$has_mcp" = true ]; then
+        echo "  - StreamsHub MCP server       (namespace: streamshub-mcp)"
     fi
     echo ""
 
@@ -245,14 +268,23 @@ main() {
         echo "Access the Console:"
         echo "  kubectl port-forward -n streamshub-console svc/streamshub-console-console-service 8090:80"
         echo "  Then open http://localhost:8090"
+        if [ "$has_mcp" = true ]; then
+            echo ""
+            echo "Access the MCP server:"
+            echo "  kubectl port-forward -n streamshub-mcp svc/streamshub-strimzi-mcp 8085:8080"
+            echo "  MCP endpoint: http://localhost:8085/mcp"
+        fi
         echo ""
     elif [ -z "${SKIP_VERIFY}" ] && [ "${verify_failed}" = "true" ]; then
         echo "Check operand status:"
         echo "  kubectl get kafka -n kafka"
         echo "  kubectl get apicurioregistry3 -n apicurio-registry"
         echo "  kubectl get console -n streamshub-console"
-        if [ "${OVERLAY}" = "metrics" ]; then
+        if [ "$has_metrics" = true ]; then
             echo "  kubectl get prometheus -n monitoring"
+        fi
+        if [ "$has_mcp" = true ]; then
+            echo "  kubectl get deployment -n streamshub-mcp streamshub-strimzi-mcp"
         fi
         echo ""
         echo "Some resources may still be starting up. Re-check after a few minutes."
@@ -265,9 +297,12 @@ main() {
         echo "  kubectl get apicurioregistry3 -n apicurio-registry"
         echo "  kubectl get deployment -n streamshub-console console-operator"
         echo "  kubectl get console -n streamshub-console"
-        if [ "${OVERLAY}" = "metrics" ]; then
+        if [ "$has_metrics" = true ]; then
             echo "  kubectl get prometheus -n monitoring"
             echo "  kubectl get podmonitor -n monitoring"
+        fi
+        if [ "$has_mcp" = true ]; then
+            echo "  kubectl get deployment -n streamshub-mcp streamshub-strimzi-mcp"
         fi
         echo ""
         echo "Note: It may take several minutes for all resources to become ready."
