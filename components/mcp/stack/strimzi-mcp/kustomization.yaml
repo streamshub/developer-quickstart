@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - https://github.com/streamshub/streamshub-mcp//install/strimzi-mcp/base?ref=v0.1.0
+  - https://github.com/streamshub/streamshub-mcp//install/strimzi-mcp/base?ref=v0.2.0
 
 labels:
   - pairs:
@@ -11,4 +11,4 @@ labels:
 
 images:
   - name: quay.io/streamshub/strimzi-mcp
-    newTag: "0.1.0"
+    newTag: "0.2.0"

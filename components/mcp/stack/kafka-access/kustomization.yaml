@@ -4,8 +4,8 @@ kind: Kustomization
 namespace: kafka
 
 resources:
-  - https://raw.githubusercontent.com/streamshub/streamshub-mcp/v0.1.0/install/strimzi-mcp/optional/role-sensitive.yaml
-  - https://raw.githubusercontent.com/streamshub/streamshub-mcp/v0.1.0/install/strimzi-mcp/optional/rolebinding-sensitive.yaml
+  - https://raw.githubusercontent.com/streamshub/streamshub-mcp/v0.2.0/install/strimzi-mcp/optional/role-sensitive.yaml
+  - https://raw.githubusercontent.com/streamshub/streamshub-mcp/v0.2.0/install/strimzi-mcp/optional/rolebinding-sensitive.yaml
 
 labels:
   - pairs:
