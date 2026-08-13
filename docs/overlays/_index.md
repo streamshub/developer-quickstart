@@ -20,7 +20,13 @@ curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/
 
 ## Available Overlays
 
-| Overlay               | Description                                                                                                                          |
-|-----------------------|--------------------------------------------------------------------------------------------------------------------------------------|
-| [core](core.md)       | The default stack: Strimzi, Kafka, Apicurio Registry, and StreamsHub Console. No `OVERLAY` variable needed.                          |
-| [metrics](metrics.md) | Adds Prometheus Operator, a Prometheus instance, and Kafka metrics collection via PodMonitors. Wires the Console to display metrics. |
+| Overlay                         | Description                                                                                                                          |
+|---------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| [core](core.md)                 | The default stack: Strimzi, Kafka, Apicurio Registry, and StreamsHub Console. No `OVERLAY` variable needed.                          |
+| [metrics](metrics.md)           | Adds Prometheus Operator, a Prometheus instance, and Kafka metrics collection via PodMonitors. Wires the Console to display metrics.  |
+| [mcp](mcp.md)                   | Adds the StreamsHub MCP server, giving AI assistants read-only access to the Strimzi-managed Kafka cluster.                          |
+| [mcp-metrics](mcp-metrics.md)   | Combines Prometheus monitoring with the StreamsHub MCP server. The MCP server uses Prometheus as its centralized metrics provider.    |
+
+## Developing Overlays
+
+See [Developing Overlays](developing.md) for the directory structure, resource limit requirements, and CI checks that apply when adding or modifying overlays.
