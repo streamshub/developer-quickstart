@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: strimzi-mcp-metrics
+  namespace: monitoring
+  labels:
+    app: strimzi
+    app.kubernetes.io/part-of: streamshub-developer-quickstart
+spec:
+  namespaceSelector:
+    matchNames:
+      - streamshub-mcp
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: strimzi-mcp
+  podMetricsEndpoints:
+    - path: /q/metrics
+      port: http

@@ -79,6 +79,16 @@ setup_prometheus_operator() {
     )
 }
 
+setup_streamshub_mcp() {
+    COMPONENT_LABEL="StreamsHub MCP"
+    GITHUB_REPO="streamshub/streamshub-mcp"
+    VERSION_REGEX='[0-9]+\.[0-9]+\.[0-9]+'
+    COMPONENT_FILES=(
+        "${SCRIPT_DIR}/components/mcp/stack/strimzi-mcp/kustomization.yaml"
+        "${SCRIPT_DIR}/components/mcp/stack/kafka-access/kustomization.yaml"
+    )
+}
+
 usage() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS] <component> <new-version>
@@ -90,6 +100,7 @@ Components:
   apicurio-registry    Apicurio Registry Operator
   streamshub-console   StreamsHub Console Operator
   prometheus-operator  Prometheus Operator (metrics overlay)
+  streamshub-mcp       StreamsHub MCP Server (mcp overlay)
 
 Arguments:
   component      The component to update
@@ -110,6 +121,7 @@ Examples:
   $(basename "$0") apicurio-registry 3.1.8     # Update Apicurio Registry
   $(basename "$0") streamshub-console 0.12.0   # Update StreamsHub Console
   $(basename "$0") prometheus-operator 0.90.0  # Update Prometheus Operator
+  $(basename "$0") streamshub-mcp 0.2.0       # Update StreamsHub MCP Server
 EOF
     exit 0
 }
@@ -130,9 +142,12 @@ setup_component() {
         prometheus-operator)
             setup_prometheus_operator
             ;;
+        streamshub-mcp)
+            setup_streamshub_mcp
+            ;;
         *)
             error "Unknown component: ${component}"
-            error "Valid components: strimzi, apicurio-registry, streamshub-console, prometheus-operator"
+            error "Valid components: strimzi, apicurio-registry, streamshub-console, prometheus-operator, streamshub-mcp"
             exit 1
             ;;
     esac
