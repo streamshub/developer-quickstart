@@ -59,7 +59,7 @@ If you prefer step-by-step control, the stack is installed in two phases.
 ### Phase 1 — Operators and CRDs
 
 ```shell
-kubectl apply -k 'https://github.com/streamshub/developer-quickstart//overlays/core/base?ref=main'
+kubectl apply --server-side --force-conflicts -k 'https://github.com/streamshub/developer-quickstart//overlays/core/base?ref=main'
 ```
 
 Optionally, you can wait for the operators to become ready using the commands below:
