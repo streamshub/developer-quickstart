@@ -1,0 +1,10 @@
+- op: replace
+  path: /spec/kafkaClusters
+  value:
+    - name: dev-cluster
+      namespace: kroxylicious
+      kind: virtualkafkaclusters.kroxylicious.io
+      properties:
+        values:
+          - name: bootstrap.servers
+            value: dev-cluster-cluster-ip-bootstrap.kroxylicious.svc.cluster.local:9292

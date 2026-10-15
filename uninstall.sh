@@ -491,6 +491,14 @@ main() {
             prom_url=$(kustomize_url "components/metrics/base/prometheus-operator")
             kubectl delete -k "${prom_url}" --ignore-not-found=true 2>/dev/null || true
         fi
+
+        # Remove kroxylicious-operator if kroxylicious overlay was used
+        if [ "${OVERLAY}" = "kroxylicious" ]; then
+            info "  Removing Kroxylicious operator..."
+            local kroxylicious_url
+            kroxylicious_url=$(kustomize_url "components/kroxylicious/base")
+            kubectl delete -k "${kroxylicious_url}" --ignore-not-found=true 2>/dev/null || true
+        fi
     fi
     echo ""
 

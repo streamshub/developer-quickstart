@@ -12,17 +12,25 @@
 # Structure:
 #   overlays:
 #     <overlay-name>:
-#       condition-overrides: "<apiGroup>=<Condition> ..."
+#       condition-overrides: "<apiGroup>=<Condition> ..." or "<apiGroup>/<Kind>=<Condition> ..."
 #
 # Fields:
-#   condition-overrides  Space-separated list of apiGroup=Condition
-#                        pairs. During verification, custom resources
-#                        belonging to the given API group will be
-#                        checked for the specified condition instead
-#                        of the default "Ready".
+#   condition-overrides  Space-separated list of overrides, each either
+#                        apiGroup=Condition or the more specific
+#                        apiGroup/Kind=Condition (which takes precedence
+#                        when both match a resource). During verification,
+#                        custom resources matching the given API group (and
+#                        Kind, if specified) will be checked for the given
+#                        condition instead of the default "Ready".
 
 overlays:
   metrics:
     condition-overrides: "monitoring.coreos.com=Available"
   mcp-metrics:
     condition-overrides: "monitoring.coreos.com=Available"
+  kroxylicious:
+    condition-overrides: >-
+      kroxylicious.io/KafkaProxyIngress=Accepted
+      kroxylicious.io/KafkaService=ResolvedRefs
+      kroxylicious.io/VirtualKafkaCluster=Accepted
+      kroxylicious.io/KafkaProtocolFilter=ResolvedRefs

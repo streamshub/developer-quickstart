@@ -1,0 +1,62 @@
+apiVersion: kroxylicious.io/v1alpha1
+kind: KafkaProxy
+metadata:
+  name: kroxylicious
+spec:
+  infrastructure:
+    proxyContainer:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+---
+apiVersion: kroxylicious.io/v1alpha1
+kind: KafkaProxyIngress
+metadata:
+  name: cluster-ip
+spec:
+  proxyRef:
+    name: kroxylicious
+  clusterIP:
+    protocol: TCP
+---
+apiVersion: kroxylicious.io/v1alpha1
+kind: KafkaService
+metadata:
+  name: dev-cluster
+spec:
+  bootstrapServers: dev-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+  nodeIdRanges:
+    - start: 0
+      end: 0
+---
+apiVersion: kroxylicious.io/v1alpha1
+kind: KafkaProtocolFilter
+metadata:
+  name: protocol-logger
+spec:
+  type: ProtocolLogger
+  configTemplate:
+    logLevel: INFO
+    apiKeyNames:
+      - PRODUCE
+      - FETCH
+      - METADATA
+---
+apiVersion: kroxylicious.io/v1alpha1
+kind: VirtualKafkaCluster
+metadata:
+  name: dev-cluster
+spec:
+  proxyRef:
+    name: kroxylicious
+  targetKafkaServiceRef:
+    name: dev-cluster
+  ingresses:
+    - ingressRef:
+        name: cluster-ip
+  filterRefs:
+    - name: protocol-logger
