@@ -33,7 +33,9 @@ import java.util.stream.Collectors;
  * <p>Environment variables:
  * <ul>
  *   <li>{@code OVERLAY} — overlay name (default: "core")</li>
- *   <li>{@code CONDITION_OVERRIDES} — space-separated apiGroup=Condition pairs (default condition: Ready)</li>
+ *   <li>{@code CONDITION_OVERRIDES} — space-separated overrides (default condition: Ready). Each entry is
+ *       either {@code apiGroup=Condition} or the more specific {@code apiGroup/Kind=Condition}, which takes
+ *       precedence when both match a resource.</li>
  *   <li>{@code TIMEOUT} — wait timeout with unit suffix, e.g. "300s", "5m" (default: "600s")</li>
  * </ul>
  */
@@ -105,7 +107,8 @@ public class VerifyInstall {
 
             // Step 4: Wait for custom resources to be ready
             for (ScriptUtils.ResourceRef ref : expectedCRs) {
-                String condition = conditionOverrides.getOrDefault(ref.apiGroup(), "Ready");
+                String condition = conditionOverrides.getOrDefault(ref.apiGroup() + "/" + ref.kind,
+                        conditionOverrides.getOrDefault(ref.apiGroup(), "Ready"));
                 System.out.println("--- " + ref.kind + "/" + ref.name
                         + " (" + ref.namespace + ") waiting for condition=" + condition + " ---");
 

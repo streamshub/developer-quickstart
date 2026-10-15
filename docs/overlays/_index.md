@@ -26,6 +26,7 @@ curl -sL https://raw.githubusercontent.com/streamshub/developer-quickstart/main/
 | [metrics](metrics.md)           | Adds Prometheus Operator, a Prometheus instance, and Kafka metrics collection via PodMonitors. Wires the Console to display metrics.  |
 | [mcp](mcp.md)                   | Adds the StreamsHub MCP server, giving AI assistants read-only access to the Strimzi-managed Kafka cluster.                          |
 | [mcp-metrics](mcp-metrics.md)   | Combines Prometheus monitoring with the StreamsHub MCP server. The MCP server uses Prometheus as its centralized metrics provider.    |
+| [kroxylicious](kroxylicious.md) | Adds a Kroxylicious proxy in front of the Kafka cluster, demonstrating protocol-level request/response filtering.                    |
 
 ## Developing Overlays
 
