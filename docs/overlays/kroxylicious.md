@@ -1,8 +1,8 @@
 +++
 title = 'Kroxylicious'
 weight = 4
-cpu_total = '4 CPU cores'
-memory_total = '6 GiB'
+cpu_total = '3 CPU cores'
+memory_total = '5 GiB'
 +++
 
 The Kroxylicious overlay extends the core stack with a [Kroxylicious](https://kroxylicious.io/) proxy deployed in front of the Strimzi-managed Kafka cluster, demonstrating request/response interception via a protocol filter.

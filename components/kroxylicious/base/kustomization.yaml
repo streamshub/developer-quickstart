@@ -8,3 +8,27 @@ labels:
   - pairs:
       app.kubernetes.io/part-of: streamshub-developer-quickstart
     includeSelectors: false
+
+patches:
+  # Upstream requests a full CPU, which starves the single-node dev cluster
+  # (the Kafka entity-operator fails to schedule). Trim it to dev-sized values.
+  - target:
+      kind: Deployment
+      name: kroxylicious-operator
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: kroxylicious-operator
+      spec:
+        template:
+          spec:
+            containers:
+              - name: operator
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    cpu: 500m
+                    memory: 512Mi
